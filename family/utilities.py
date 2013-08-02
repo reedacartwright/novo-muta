@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 def two_parent_counts():
     """
@@ -38,7 +39,7 @@ def two_parent_counts():
 
     return genotype_count
 
-def one_parent_frequencies():
+def one_parent_counts():
     """
     Count the nucleotide frequencies for the 16 different 2-allele genotypes
 
@@ -51,8 +52,7 @@ def one_parent_frequencies():
         for nucleotide2 in nucleotide_list:
             genotype_list.append(nucleotide1 + nucleotide2)
 
-    frequencies = np.zeros((len(genotype_list), len(nucleotide_list)))
-
+    counts = np.zeros((len(genotype_list), len(nucleotide_list)))
     for gt in xrange(len(genotype_list)):
         count_list = [0.0, 0.0, 0.0, 0.0]
         for nt in xrange(len(nucleotide_list)):
@@ -61,14 +61,29 @@ def one_parent_frequencies():
             if genotype_list[gt][1] == nucleotide_list[nt]:
                 count_list[nt] += 1
 
-        N = sum(count_list)
-        freq_list = [0.0, 0.0, 0.0, 0.0]
-        for i in xrange(len(freq_list)):
-            freq_list[i] = count_list[i] / N
+        counts[gt, :] = count_list
 
-        frequencies[gt, :] = freq_list
+    return counts
 
-    return frequencies
+def enum_nt_counts(size):
+    """
+    Enumerate all nucleotide strings of a given size in lexicographic order
+    and return a 4^size x 4 numpy array of nucleotide counts associated
+    with the strings
+    """
+    nt_counts = np.zeros((math.pow(4,size), 4))
+    if size == 1:
+        nt_counts = np.identity(4)
+        return nt_counts
+    else:
+        first = np.identity(4)
+        first_shape = (4, 4)
+        second = enum_nt_counts(size - 1)
+        second_shape = second.shape
+        for j in xrange(second_shape[0]):
+            for i in xrange(first_shape[0]):
+                nt_counts[i+j*4, :] = (first[i, :] + second[j, :])
+        return nt_counts
 
 def dc_alpha_parameters():
     """
@@ -126,4 +141,7 @@ def dc_alpha_parameters():
     return alpha_mat
 
 if __name__ == '__main__':
-    print one_parent_frequencies()
+    print enum_nt_counts(2)
+    print enum_nt_counts(2).shape
+    print enum_nt_counts(3)
+    print enum_nt_counts(3).shape
