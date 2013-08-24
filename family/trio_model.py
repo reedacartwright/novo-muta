@@ -1,8 +1,11 @@
+#!/usr/bin/env python
 from math import exp, pow, log
+
 import numpy as np
-import pdf
-import utilities
 import scipy.special as sp
+
+import utilities
+import pdf
 
 def trio_prob(read_child, read_mom, read_dad,
               pop_muta_rate, pop_nt_freq,
@@ -99,9 +102,9 @@ def seq_error(error_rate, priors_mat, read_counts):
     (n_genotypes, n_nucleotides, n_nucleotides) = priors_mat.shape
     alpha_mat = error_rate * priors_mat
 
-    proba_mat = np.zeros((n_genotypes, n_nucleotides))
-    for i in xrange(n_genotypes):
-        for j in xrange(n_nucleotides):
+    proba_mat = np.zeros(( n_genotypes, n_nucleotides ))
+    for i in range(n_genotypes):
+        for j in range(n_nucleotides):
             proba_mat[i, j] = pdf.dirichlet_multinomial(priors_mat[i, j, :],
                                                         read_counts) 
 
@@ -246,7 +249,7 @@ def pop_sample(muta_rate, nt_freq):
     """
     # combine parameters for call to dirichlet multinomial
     muta_nt_freq = nt_freq
-    for i in xrange(len(nt_freq)):
+    for i in range(len(nt_freq)):
         muta_nt_freq[i] = nt_freq[i] * muta_rate
 
     # 16 x 16 lexicographical ordering of 2-allele genotypes
@@ -254,9 +257,9 @@ def pop_sample(muta_rate, nt_freq):
     genotype_count = utilities.two_parent_counts()
     (n_mother_geno, n_father_geno, n_nucleotides) = genotype_count.shape
     total_nucleotides = 4 # 2 parents x 2-allele genotype
-    proba_mat = np.zeros((n_mother_geno, n_father_geno))
-    for i in xrange(n_mother_geno):
-        for j in xrange(n_father_geno):
+    proba_mat = np.zeros(( n_mother_geno, n_father_geno ))
+    for i in range(n_mother_geno):
+        for j in range(n_father_geno):
             nt_count = genotype_count[i, j, :]
             log_proba = pdf.dirichlet_multinomial(muta_nt_freq, nt_count)
             proba_mat[i, j] = log_proba
@@ -267,4 +270,4 @@ if __name__ == '__main__':
     error_rate = 0.001
     priors_mat = utilities.dc_alpha_parameters() 
     reads = [10, 10, 10, 10]
-    print seq_error(error_rate, priors_mat, reads)
+    print(seq_error(error_rate, priors_mat, reads))

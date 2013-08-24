@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import scipy.special as sp
 
 def dirichlet_multinomial(alpha, n):
@@ -28,9 +29,7 @@ def dirichlet_multinomial(alpha, n):
     A = sum(alpha)
     constant_term = (sp.gammaln(A) - sp.gammaln(N + A))
     product_term = 0
-    for i in xrange(len(n)):
-        product_term += (sp.gammaln(alpha[i] + 
-                                    n[i]) -
-                         sp.gammaln(alpha[i]))
+    for i in range(len(n)):
+        product_term += (sp.gammaln(alpha[i] + n[i]) - sp.gammaln(alpha[i]))
     log_proba = constant_term + product_term
     return log_proba
