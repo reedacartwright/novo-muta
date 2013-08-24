@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-from math import exp, pow, log
-
+from math import exp
 import numpy as np
 import scipy.special as sp
 
@@ -64,23 +63,18 @@ def trio_prob(read_child, read_mom, read_dad,
 
     Output
     ------
-    prob    - a scalar probability value indicating the probability
+    proba   - a scalar probability value indicating the probability
               of the read data given the parameters
-
-    Notes
-    -----
-
     """
-    prob = 0
-
-
-    return prob
+    proba = 0
+    # TODO: To be implemented.
+    return proba
 
 def seq_error(error_rate, priors_mat, read_counts):
     """
     Calculate the probability of sequencing error 
 
-    Inputs
+    Input
     ------
     error_rate          - the sequencing error rate as a float
     priors_mat          - 16 x 4 x 4 numpy array of the Dirichlet 
@@ -99,15 +93,12 @@ def seq_error(error_rate, priors_mat, read_counts):
     this is a point of divergence from the Cartwright et al. paper mentioned
     in the other functions
     """
-    (n_genotypes, n_nucleotides, n_nucleotides) = priors_mat.shape
-    alpha_mat = error_rate * priors_mat
-
-    proba_mat = np.zeros(( n_genotypes, n_nucleotides ))
-    for i in range(n_genotypes):
-        for j in range(n_nucleotides):
+    # alpha_mat = error_rate * priors_mat # unused
+    proba_mat = np.zeros(( utilities.GENOTYPE_COUNT, utilities.NUCLEOTIDE_COUNT ))
+    for i in range(utilities.GENOTYPE_COUNT):
+        for j in range(utilities.NUCLEOTIDE_COUNT):
             proba_mat[i, j] = pdf.dirichlet_multinomial(priors_mat[i, j, :],
-                                                        read_counts) 
-
+                                                        read_counts)
     return proba_mat 
 
 def soma_muta(soma1, chrom1, muta_rate):
@@ -117,67 +108,47 @@ def soma_muta(soma1, chrom1, muta_rate):
     Terms refer to that of equation 5 on page 7 of Cartwright et al.: Family-
     Based Method for Capturing De Novo Mutations
     """
-    proba = 0.0
-
     exp_term = np.exp(-4.0/3.0 * muta_rate)
     term1 = 0.25 - 0.25 * exp_term
-    #term2 is indicator term
+    # term2 is indicator term
 
-    #check if indicator function is true for each chromosome
+    # check if indicator function is true for each chromosome
+    ind_term_chrom1 = 0
     if soma1 == chrom1:
         ind_term_chrom1 = exp_term
-    else:
-        ind_term_chrom1 = 0
 
-    #calculate the probability
-    proba = term1 + ind_term_chrom1
+    return term1 + ind_term_chrom1  # probability
 
-    return proba
-
-def germ_muta(child_chrom1, child_chrom2, mom_chrom1, mom_chrom2, dad_chrom1,
-              dad_chrom2, muta_rate):
+def germ_muta(child_chrom1, child_chrom2,
+              mom_chrom1, mom_chrom2,
+              dad_chrom1, dad_chrom2,
+              muta_rate):
     """
     Determine the probability of germline mutations and parent chromosome 
     donation in the same step
     Supposes child_chrom1 is associated with the mother and child_chrom2 is 
     associated with the father
     """
-    proba = 0.0
-    
     exp_term = exp(-4.0/3.0 * muta_rate)
     homo_match = 0.25 + 0.75 * exp_term
     hetero_match = 0.25 + 0.25 * exp_term
     no_match = 0.25 - 0.25 * exp_term
 
-    if mom_chrom1 == mom_chrom2:
-        #then mom homozygous
-        if child_chrom1 == mom_chrom1:
-            term1 = homo_match
-        else:
-            term1 = no_match
-    else:
-        #then mom heterozygous
-        if child_chrom1 == mom_chrom1 or child_chrom1 == mom_chrom2:
-            term1 = hetero_match
-        else:
-            term1 = no_match
+    term1 = no_match
+    mom_table = [mom_chrom1 == mom_chrom2, child_chrom1 == mom_chrom1]
+    #                 [homo, match]
+    if mom_table ==   [True, True]:  term1 = homo_match
+    elif mom_table == [False, True]: term1 = hetero_match
+    elif child_chrom1 == mom_chrom2: term1 = hetero_match
 
-    if dad_chrom1 == dad_chrom2:
-        #then dad homozygous
-        if child_chrom2 == dad_chrom1:
-            term2 = homo_match
-        else:
-            term2 = no_match
-    else:
-        #then dad heterozygous
-        if child_chrom2 == dad_chrom1 or child_chrom2 == dad_chrom2:
-            term2 = hetero_match
-        else:
-            term2 = no_match
+    term2 = no_match
+    dad_table = [dad_chrom1 == dad_chrom2, child_chrom2 == dad_chrom1]
+    #                 [homo, match]
+    if dad_table ==   [True, True]:  term2 = homo_match
+    elif dad_table == [False, True]: term2 = hetero_match
+    elif child_chrom2 == dad_chrom2: term2 = hetero_match
 
-    proba = term1 * term2
-    
-    return proba
+    return term1 * term2  # probability
 
 def pop_sample(muta_rate, nt_freq):
     """
@@ -253,21 +224,22 @@ def pop_sample(muta_rate, nt_freq):
         muta_nt_freq[i] = nt_freq[i] * muta_rate
 
     # 16 x 16 lexicographical ordering of 2-allele genotypes
-    # x 4 types of nucleotides
-    genotype_count = utilities.two_parent_counts()
-    (n_mother_geno, n_father_geno, n_nucleotides) = genotype_count.shape
-    total_nucleotides = 4 # 2 parents x 2-allele genotype
-    proba_mat = np.zeros(( n_mother_geno, n_father_geno ))
-    for i in range(n_mother_geno):
-        for j in range(n_father_geno):
-            nt_count = genotype_count[i, j, :]
+    #    x 4  types of nucleotides
+    gt_count = utilities.two_parent_counts()
+    # unused
+    # (n_mother_geno, n_father_geno, n_nucleotides) = genotype_count.shape
+    # total_nucleotides = 4  # 2 parents x 2-allele genotype
+    proba_mat = np.zeros(( utilities.GENOTYPE_COUNT, utilities.GENOTYPE_COUNT ))
+    for i in range(utilities.GENOTYPE_COUNT):
+        for j in range(utilities.GENOTYPE_COUNT):
+            nt_count = gt_count[i, j, :]
             log_proba = pdf.dirichlet_multinomial(muta_nt_freq, nt_count)
             proba_mat[i, j] = log_proba
 
     return proba_mat 
 
-if __name__ == '__main__':
-    error_rate = 0.001
-    priors_mat = utilities.dc_alpha_parameters() 
-    reads = [10, 10, 10, 10]
-    print(seq_error(error_rate, priors_mat, reads))
+# if __name__ == '__main__':
+#     error_rate = 0.001
+#     priors_mat = utilities.dc_alpha_parameters() 
+#     reads = [10] * 4
+#     print(seq_error(error_rate, priors_mat, reads))
