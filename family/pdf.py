@@ -31,4 +31,4 @@ def dirichlet_multinomial(alpha, n):
     product_term = 0
     for i in range(len(n)):
         product_term += (sp.gammaln(alpha[i] + n[i]) - sp.gammaln(alpha[i]))
-    return constant_term + product_term  # log_proba
+    return constant_term + product_term

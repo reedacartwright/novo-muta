@@ -10,6 +10,7 @@ NUCLEOTIDES = ['A', 'C', 'G', 'T']
 NUCLEOTIDE_COUNT = len(NUCLEOTIDES)  # 4
 NUCLEOTIDE_INDEX = {nt: i for i, nt in enumerate(NUCLEOTIDES)}
 
+# order of genotypes relevant? use of genotype and index is consistent
 GENOTYPES = ['%s%s' % pair
     for pair in itertools.product(NUCLEOTIDES, repeat=2)
 ]
@@ -115,9 +116,3 @@ def dc_alpha_parameters():
                 alpha_mat[i, j, k] = 0.25
 
     return alpha_mat
-
-# if __name__ == '__main__':
-#     print(enum_nt_counts(2))
-#     print(enum_nt_counts(2).shape)
-#     print(enum_nt_counts(3))
-#     print(enum_nt_counts(3).shape)

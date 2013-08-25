@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import math
 import numpy as np
-import scipy.special as sp
 
 import utilities as ut
 import pdf
@@ -69,7 +68,12 @@ def trio_prob(read_child, read_mom, read_dad,
     proba = 0
     # TODO: To be implemented.
     return proba
-
+    
+# Usage:
+# error_rate = 0.001
+# priors_mat = ut.dc_alpha_parameters() 
+# reads = [10] * 4
+# proba = seq_error(error_rate, priors_mat, reads)
 def seq_error(error_rate, priors_mat, read_counts):
     """
     Calculate the probability of sequencing error 
@@ -145,8 +149,8 @@ def germ_muta(child_chrom, mom_chrom, dad_chrom, muta_rate):
 
 def pop_sample(muta_rate, nt_freq):
     """
-    Given a mutation rate parameter theta and a set of nucleotide
-    appearance frequencies in the gene pool 
+    Given a mutation rate parameter theta and
+    a set of nucleotide appearance frequencies in the gene pool 
     (alpha_A, alpha_C, alpha_G, alpha_T),
     return a 16x16 probability matrix
     where the ij'th entry in the matrix is the probability that
@@ -212,16 +216,11 @@ def pop_sample(muta_rate, nt_freq):
     in other functions
     """
     # combine parameters for call to dirichlet multinomial
-    muta_nt_freq = nt_freq
-    for i in range(len(nt_freq)):
-        muta_nt_freq[i] = nt_freq[i] * muta_rate
+    muta_nt_freq = [i * muta_rate for i in nt_freq]  # can use numpy arr
 
     # 16 x 16 lexicographical ordering of 2-allele genotypes
-    #    x 4  types of nucleotides
+    #    x 4  types of nucleotides (2 parents x 2-allele genotype)
     gt_count = ut.two_parent_counts()
-    # unused
-    # (n_mother_geno, n_father_geno, n_nucleotides) = genotype_count.shape
-    # total_nucleotides = 4  # 2 parents x 2-allele genotype
     proba_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
     for i in range(ut.GENOTYPE_COUNT):
         for j in range(ut.GENOTYPE_COUNT):
@@ -230,9 +229,3 @@ def pop_sample(muta_rate, nt_freq):
             proba_mat[i, j] = log_proba
 
     return proba_mat
-
-# if __name__ == '__main__':
-#     error_rate = 0.001
-#     priors_mat = ut.dc_alpha_parameters() 
-#     reads = [10] * 4
-#     print(seq_error(error_rate, priors_mat, reads))

@@ -23,14 +23,14 @@ class TestTree(unittest.TestCase):
         # assume true if pass test_pop_sample
         self.parent_prob_mat = fm.pop_sample(self.muta_rate, self.nt_freq)
         
-    # at the top (population sample) of the tree events should sum to 1
+    # at population sample, events should sum to 1
     def test_pop_sample(self):
         parent_prob_mat = fm.pop_sample(self.muta_rate, self.nt_freq)
         proba = np.sum( np.exp(parent_prob_mat) )
         self.assertAlmostEqual(proba, 1)
 
-    # at the germline mutation level, we must condition on parent genotype layer
-    # for events to sum to 1
+    # at germline mutation, events should sum to 1
+    # must condition on parent genotype layer
     def test_germ_muta(self):
         child_prob_mat = np.zeros((
             ut.GENOTYPE_COUNT,
@@ -49,11 +49,11 @@ class TestTree(unittest.TestCase):
         proba = np.sum(child_prob_mat)
         self.assertAlmostEqual(proba, 1)
 
-    # at the somatic mutation layer we again must condition on parent
-    # genotype for events to sum to 1 
+    # at somatic mutation, events should sum to 1
+    # must condition on parent genotype layer
     def test_soma_muta(self):
-        # first compute event space for somatic nucleotide given a genotype nucleotide
-        # for a single chromosome
+        # compute event space for somatic nucleotide
+        # given a genotype nucleotide for a single chromosome
         prob_vec = np.zeros(( ut.NUCLEOTIDE_COUNT, ut.NUCLEOTIDE_COUNT ))
         for soma_nt in ut.NUCLEOTIDE_INDEX:
             i = ut.NUCLEOTIDE_INDEX[soma_nt]
@@ -61,7 +61,7 @@ class TestTree(unittest.TestCase):
                 j = ut.NUCLEOTIDE_INDEX[geno_nt]
                 prob_vec[i, j] = fm.soma_muta(soma_nt, geno_nt, self.muta_rate)
 
-        # next combine event spaces for two chromosomes (independent of each other)
+        # combine event spaces for two chromosomes (independent of each other)
         # and call resulting 16x16 matrix soma_given_geno
         # first dimension lexicographical order of pairs of letters from 
         # nt alphabet for somatic genotypes
@@ -78,8 +78,9 @@ class TestTree(unittest.TestCase):
                 outer_prod_flat = outer_prod.flatten()
                 soma_given_geno[:, soma_muta_index] = outer_prod_flat
 
-        # with the event space from the somatic mutation step calculated we can now
-        # assign a pdf to the true genotype event space based on the previous layer
+        # with the event space from the somatic mutation step calculated
+        # we can now assign a pdf to the true genotype event space
+        # based on the previous layer
 
         # collapse parent prob mat into a single parent
         parent_prob_mat_exp = np.exp(self.parent_prob_mat)
@@ -97,7 +98,9 @@ class TestTree(unittest.TestCase):
         proba_soma = np.sum(soma_and_geno)
         self.assertAlmostEqual(proba_soma, 1)
 
-        # finally, compute probabilities of sequencing error
+    # TODO: write test using seq_error
+    def test_seq_error(self):
+        # compute probabilities of sequencing error
         nt_string_size = 2
         nt_counts = ut.enum_nt_counts(nt_string_size)
         n_strings = int(math.pow( ut.NUCLEOTIDE_COUNT, nt_string_size ))
@@ -111,6 +114,9 @@ class TestTree(unittest.TestCase):
         # print(prob_read_given_soma) # matrix
         proba = np.sum(prob_read_given_soma)
         self.assertAlmostEqual(proba, 1)
+
+    def test_trio_prob(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()
