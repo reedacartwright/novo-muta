@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-from math import exp
+import math
 import numpy as np
 import scipy.special as sp
 
-import utilities
+import utilities as ut
 import pdf
 
 def trio_prob(read_child, read_mom, read_dad,
@@ -94,9 +94,9 @@ def seq_error(error_rate, priors_mat, read_counts):
     in the other functions
     """
     # alpha_mat = error_rate * priors_mat # unused
-    proba_mat = np.zeros(( utilities.GENOTYPE_COUNT, utilities.NUCLEOTIDE_COUNT ))
-    for i in range(utilities.GENOTYPE_COUNT):
-        for j in range(utilities.NUCLEOTIDE_COUNT):
+    proba_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.NUCLEOTIDE_COUNT ))
+    for i in range(ut.GENOTYPE_COUNT):
+        for j in range(ut.NUCLEOTIDE_COUNT):
             proba_mat[i, j] = pdf.dirichlet_multinomial(priors_mat[i, j, :],
                                                         read_counts)
     return proba_mat 
@@ -113,42 +113,35 @@ def soma_muta(soma1, chrom1, muta_rate):
     # term2 is indicator term
 
     # check if indicator function is true for each chromosome
-    ind_term_chrom1 = 0
-    if soma1 == chrom1:
-        ind_term_chrom1 = exp_term
+    ind_term_chrom1 = exp_term if soma1 == chrom1 else 0
 
-    return term1 + ind_term_chrom1  # probability
+    return term1 + ind_term_chrom1
 
-def germ_muta(child_chrom1, child_chrom2,
-              mom_chrom1, mom_chrom2,
-              dad_chrom1, dad_chrom2,
-              muta_rate):
+def germ_muta(child_chrom, mom_chrom, dad_chrom, muta_rate):
     """
     Determine the probability of germline mutations and parent chromosome 
     donation in the same step
-    Supposes child_chrom1 is associated with the mother and child_chrom2 is 
-    associated with the father
+    Assumes first chromosome is associated with the mother and
+    second chromosome is associated with the father
     """
-    exp_term = exp(-4.0/3.0 * muta_rate)
-    homo_match = 0.25 + 0.75 * exp_term
-    hetero_match = 0.25 + 0.25 * exp_term
-    no_match = 0.25 - 0.25 * exp_term
 
-    term1 = no_match
-    mom_table = [mom_chrom1 == mom_chrom2, child_chrom1 == mom_chrom1]
-    #                 [homo, match]
-    if mom_table ==   [True, True]:  term1 = homo_match
-    elif mom_table == [False, True]: term1 = hetero_match
-    elif child_chrom1 == mom_chrom2: term1 = hetero_match
+    def get_term_match(parent_chrom, child_chrom_base):
+        exp_term = math.exp(-4.0/3.0 * muta_rate)
+        homo_match = 0.25 + 0.75 * exp_term
+        hetero_match = 0.25 + 0.25 * exp_term
+        no_match = 0.25 - 0.25 * exp_term
 
-    term2 = no_match
-    dad_table = [dad_chrom1 == dad_chrom2, child_chrom2 == dad_chrom1]
-    #                 [homo, match]
-    if dad_table ==   [True, True]:  term2 = homo_match
-    elif dad_table == [False, True]: term2 = hetero_match
-    elif child_chrom2 == dad_chrom2: term2 = hetero_match
+        if child_chrom_base in parent_chrom:
+            if parent_chrom[0] == parent_chrom[1]:
+                return homo_match
+            else:
+                return hetero_match
+        else:
+            return no_match
 
-    return term1 * term2  # probability
+    term1 = get_term_match(mom_chrom, child_chrom[0])
+    term2 = get_term_match(dad_chrom, child_chrom[1])
+    return term1 * term2
 
 def pop_sample(muta_rate, nt_freq):
     """
@@ -225,21 +218,21 @@ def pop_sample(muta_rate, nt_freq):
 
     # 16 x 16 lexicographical ordering of 2-allele genotypes
     #    x 4  types of nucleotides
-    gt_count = utilities.two_parent_counts()
+    gt_count = ut.two_parent_counts()
     # unused
     # (n_mother_geno, n_father_geno, n_nucleotides) = genotype_count.shape
     # total_nucleotides = 4  # 2 parents x 2-allele genotype
-    proba_mat = np.zeros(( utilities.GENOTYPE_COUNT, utilities.GENOTYPE_COUNT ))
-    for i in range(utilities.GENOTYPE_COUNT):
-        for j in range(utilities.GENOTYPE_COUNT):
+    proba_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
+    for i in range(ut.GENOTYPE_COUNT):
+        for j in range(ut.GENOTYPE_COUNT):
             nt_count = gt_count[i, j, :]
             log_proba = pdf.dirichlet_multinomial(muta_nt_freq, nt_count)
             proba_mat[i, j] = log_proba
 
-    return proba_mat 
+    return proba_mat
 
 # if __name__ == '__main__':
 #     error_rate = 0.001
-#     priors_mat = utilities.dc_alpha_parameters() 
+#     priors_mat = ut.dc_alpha_parameters() 
 #     reads = [10] * 4
 #     print(seq_error(error_rate, priors_mat, reads))

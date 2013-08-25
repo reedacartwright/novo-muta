@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-from math import pow
+import math
+import itertools
 import numpy as np
 
 # global constants for specifiying array size
@@ -7,22 +8,19 @@ import numpy as np
 # gt - genotype
 NUCLEOTIDES = ['A', 'C', 'G', 'T']
 NUCLEOTIDE_COUNT = len(NUCLEOTIDES)  # 4
-NUCLEOTIDE_INDEX = {}
-for i, nuc in enumerate(NUCLEOTIDES):
-    NUCLEOTIDE_INDEX.update({ nuc: i })
+NUCLEOTIDE_INDEX = {nt: i for i, nt in enumerate(NUCLEOTIDES)}
 
-GENOTYPES = []
-for nt1 in NUCLEOTIDES:
-    for nt2 in NUCLEOTIDES:
-        GENOTYPES.append(nt1 + nt2)
+GENOTYPES = ['%s%s' % pair
+    for pair in itertools.product(NUCLEOTIDES, repeat=2)
+]
 GENOTYPE_COUNT = len(GENOTYPES)  # 16
-GENOTYPE_INDEX = {}
-for i, geno in enumerate(GENOTYPES):
-    GENOTYPE_INDEX.update({ geno: i })
+GENOTYPE_INDEX = {gt: i for i, gt in enumerate(GENOTYPES)}
 
-GENO_LEFT_EQUIV = {'AC':'CA', 'AG':'GA', 'AT':'TA',
-                   'CG':'GC', 'CT':'TC', 'GT':'TG'}
-GENO_RIGHT_EQUIV = {v:k for k, v in GENO_LEFT_EQUIV.items()}
+GENOTYPE_LEFT_EQUIV = {
+    'AC':'CA', 'AG':'GA', 'AT':'TA',
+    'CG':'GC', 'CT':'TC', 'GT':'TG'
+}
+GENOTYPE_RIGHT_EQUIV = {v: k for k, v in GENOTYPE_LEFT_EQUIV.items()}
 
 def two_parent_counts():
     """
@@ -83,7 +81,7 @@ def enum_nt_counts(size):
     with the strings
     """
     nt_counts = np.zeros((
-        pow(NUCLEOTIDE_COUNT, size),
+        math.pow(NUCLEOTIDE_COUNT, size),
         NUCLEOTIDE_COUNT
     ))
     if size == 1:
