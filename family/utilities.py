@@ -7,26 +7,22 @@ import numpy as np
 # gt - genotype
 NUCLEOTIDES = ['A', 'C', 'G', 'T']
 NUCLEOTIDE_COUNT = len(NUCLEOTIDES)  # 4
+NUCLEOTIDE_INDEX = {}
+for i, nuc in enumerate(NUCLEOTIDES):
+    NUCLEOTIDE_INDEX.update({ nuc: i })
+
 GENOTYPES = []
 for nt1 in NUCLEOTIDES:
     for nt2 in NUCLEOTIDES:
         GENOTYPES.append(nt1 + nt2)
 GENOTYPE_COUNT = len(GENOTYPES)  # 16
+GENOTYPE_INDEX = {}
+for i, geno in enumerate(GENOTYPES):
+    GENOTYPE_INDEX.update({ geno: i })
 
-# currently unused
-# NT_INDEX = {}
-# for i, nuc in enumerate(NUCLEOTIDES):
-#     NT_INDEX.update({ nuc: i })
-# N_NT = len(NT_INDEX)
-
-# GENOTYPE_INDEX = {}
-# for i, geno in enumerate(GENOTYPES):
-#     GENOTYPE_INDEX.update({ geno: i })
-# N_GT = len(GENOTYPE_INDEX)
-
-# GENO_LEFT_EQUIV = {'AC':'CA', 'AG':'GA', 'AT':'TA',
-#                    'CG':'GC', 'CT':'TC', 'GT':'TG'}
-# GENO_RIGHT_EQUIV = {v:k for k, v in GENO_LEFT_EQUIV.items()}
+GENO_LEFT_EQUIV = {'AC':'CA', 'AG':'GA', 'AT':'TA',
+                   'CG':'GC', 'CT':'TC', 'GT':'TG'}
+GENO_RIGHT_EQUIV = {v:k for k, v in GENO_LEFT_EQUIV.items()}
 
 def two_parent_counts():
     """
