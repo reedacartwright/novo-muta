@@ -64,11 +64,12 @@ def trio_prob(read_child, read_mom, read_dad,
     ------
     proba   - a scalar probability value indicating the probability
               of the read data given the parameters
+
     """
     proba = 0
     # TODO: To be implemented.
     return proba
-    
+
 # Usage:
 # error_rate = 0.001
 # priors_mat = ut.dc_alpha_parameters() 
@@ -96,6 +97,7 @@ def seq_error(error_rate, priors_mat, read_counts):
     The probability is drawn from a Dirichlet multinomial distribution:
     this is a point of divergence from the Cartwright et al. paper mentioned
     in the other functions
+
     """
     # alpha_mat = error_rate * priors_mat # unused
     proba_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.NUCLEOTIDE_COUNT ))
@@ -111,6 +113,7 @@ def soma_muta(soma1, chrom1, muta_rate):
 
     Terms refer to that of equation 5 on page 7 of Cartwright et al.: Family-
     Based Method for Capturing De Novo Mutations
+
     """
     exp_term = np.exp(-4.0/3.0 * muta_rate)
     term1 = 0.25 - 0.25 * exp_term
@@ -127,6 +130,7 @@ def germ_muta(child_chrom, mom_chrom, dad_chrom, muta_rate):
     donation in the same step
     Assumes first chromosome is associated with the mother and
     second chromosome is associated with the father
+
     """
 
     def get_term_match(parent_chrom, child_chrom_base):
@@ -214,12 +218,13 @@ def pop_sample(muta_rate, nt_freq):
 
     Note: this model does not follow that of the Cartwright paper mentioned
     in other functions
+
     """
     # combine parameters for call to dirichlet multinomial
     muta_nt_freq = [i * muta_rate for i in nt_freq]  # can use numpy arr
 
     # 16 x 16 lexicographical ordering of 2-allele genotypes
-    #    x 4  types of nucleotides (2 parents x 2-allele genotype)
+    #    x 4  types of nucleotides (2 parents x 2-allele genotypes)
     gt_count = ut.two_parent_counts()
     proba_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
     for i in range(ut.GENOTYPE_COUNT):

@@ -7,6 +7,7 @@ P(R) probability of sequencing reads
 P(T) requires no conditioning
 P(S) = \sum_T P(T) * P(S|T)
 P(R) = \sum_S P(S) * P(R|S)
+
 """
 import unittest
 import math
