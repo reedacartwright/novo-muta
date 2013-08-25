@@ -105,7 +105,7 @@ def seq_error(error_rate, priors_mat, read_counts):
         for j in range(ut.NUCLEOTIDE_COUNT):
             proba_mat[i, j] = pdf.dirichlet_multinomial(priors_mat[i, j, :],
                                                         read_counts)
-    return proba_mat 
+    return proba_mat
 
 def soma_muta(soma1, chrom1, muta_rate):
     """

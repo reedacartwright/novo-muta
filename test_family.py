@@ -39,14 +39,14 @@ class TestTree(unittest.TestCase):
             ut.GENOTYPE_COUNT
         ))
 
-        for mother_gt, mi in ut.GENOTYPE_INDEX.items():
-            for father_gt, fi in ut.GENOTYPE_INDEX.items():
-                for child_gt, ci in ut.GENOTYPE_INDEX.items():
+        for mother_gt, mom_idx in ut.GENOTYPE_INDEX.items():
+            for father_gt, dad_idx in ut.GENOTYPE_INDEX.items():
+                for child_gt, child_idx in ut.GENOTYPE_INDEX.items():
                     child_given_parent = fm.germ_muta(child_gt, mother_gt,
                                                       father_gt, self.muta_rate)
-                    parent = self.parent_prob_mat[mi, fi]
-                    event = child_given_parent * np.exp(parent) # latter in log form
-                    child_prob_mat[mi, fi, ci] = event
+                    parent = self.parent_prob_mat[mom_idx, dad_idx]
+                    event = child_given_parent * np.exp(parent)  # latter in log form
+                    child_prob_mat[mom_idx, dad_idx, child_idx] = event
         proba = np.sum(child_prob_mat)
         self.assertAlmostEqual(proba, 1)
 
@@ -56,10 +56,8 @@ class TestTree(unittest.TestCase):
         # compute event space for somatic nucleotide
         # given a genotype nucleotide for a single chromosome
         prob_vec = np.zeros(( ut.NUCLEOTIDE_COUNT, ut.NUCLEOTIDE_COUNT ))
-        for soma_nt in ut.NUCLEOTIDE_INDEX:
-            i = ut.NUCLEOTIDE_INDEX[soma_nt]
-            for geno_nt in ut.NUCLEOTIDE_INDEX:
-                j = ut.NUCLEOTIDE_INDEX[geno_nt]
+        for soma_nt, i in ut.NUCLEOTIDE_INDEX.items():
+            for geno_nt, j in ut.NUCLEOTIDE_INDEX.items():
                 prob_vec[i, j] = fm.soma_muta(soma_nt, geno_nt, self.muta_rate)
 
         # combine event spaces for two chromosomes (independent of each other)
@@ -68,11 +66,9 @@ class TestTree(unittest.TestCase):
         # nt alphabet for somatic genotypes
         # second dimension is that for true genotypes
         soma_given_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
-        for chrom1 in ut.NUCLEOTIDE_INDEX:
-            i = ut.NUCLEOTIDE_INDEX[chrom1]
+        for chrom1, i in ut.NUCLEOTIDE_INDEX.items():
             given_chrom1_vec = prob_vec[:, i]
-            for chrom2 in ut.NUCLEOTIDE_INDEX:
-                j = ut.NUCLEOTIDE_INDEX[chrom2]
+            for chrom2, j in ut.NUCLEOTIDE_INDEX.items():
                 given_chrom2_vec = prob_vec[:, i]
                 soma_muta_index = i * ut.NUCLEOTIDE_COUNT + j
                 outer_prod = np.outer(given_chrom1_vec, given_chrom2_vec)
@@ -90,7 +86,7 @@ class TestTree(unittest.TestCase):
         proba = np.sum(geno)
         self.assertAlmostEqual(proba, 1)
 
-        # and compute the joint probabilities
+        # compute the joint probabilities
         soma_and_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
         for i in range(ut.GENOTYPE_COUNT):
             soma_and_geno[:, i] = geno[i] * soma_given_geno[:, i]

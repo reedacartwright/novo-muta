@@ -44,8 +44,8 @@ def two_parent_counts():
         for gt_idx, gt in enumerate(GENOTYPES):
             for base in gt:
                 if base == nt:
-                    gt_count[gt_idx, :, nt_idx] += one_vec # mother
-                    gt_count[:, gt_idx, nt_idx] += one_vec # father
+                    gt_count[gt_idx, :, nt_idx] += one_vec  # mother
+                    gt_count[:, gt_idx, nt_idx] += one_vec  # father
 
     return gt_count
 
