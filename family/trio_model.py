@@ -1,21 +1,19 @@
 #!/usr/bin/env python
 import math
+
 import numpy as np
 
-import utilities as ut
 import pdf
+import utilities as ut
+
 
 def trio_prob(read_child, read_mom, read_dad,
               pop_muta_rate, pop_nt_freq,
               germ_muta_rate, soma_muta_rate,
               dc_nt_freq, dc_disp, dc_bias):
     """
-    Return the probability of read data given a set of parameters
-
-    An implementation of the trio model for a single site.
-
-    This function implements the model by calling the functions
-    written on the left of the following diagram. The function names label
+    Implement the trio model for a single site by calling the functions
+    on the left of the following diagram. The function names label
     the arrow-denoted processes in the population model.
 
                           Population          Population
@@ -41,33 +39,48 @@ def trio_prob(read_child, read_mom, read_dad,
                             Genotype Genotype  Genotype
                             Reads    Reads     Reads
 
-    Input
-    -----
-    The input parameters are broken up into categories
-    Read data
-        read_child - a 4-element nt count list [#A, #C, #G, #T]
-        read_mom   - a 4-element nt count list [#A, #C, #G, #T]
-        read_dad   - a 4-element nt count list [#A, #C, #G, #T]
-    Population parameters
-        pop_muta_rate  - a scalar in [0, 1]
-        pop_nt_freq    - a 4-element nt frequency list [%A, %C, %G, %T]
-    Germline mutation parameters
-        germ_muta_rate - a scalar in [0, 1]
-    Somatic mutation parameters
-        soma_muta_rate - a scalar in [0, 1]
-    Sequencing error parameters
-        dc_nt_freq  - a 4-element Dirichlet distribution parameter list
-        dc_disp     - a dispersion parameter
-        dc_bias     - a bias parameter
+    Args:
+        read_child: A 4-element nt count list [#A, #C, #G, #T].
+        read_mom: A 4-element nt count list [#A, #C, #G, #T].
+        read_dad: A 4-element nt count list [#A, #C, #G, #T].
+        pop_muta_rate: A scalar in [0, 1]
+        pop_nt_freq: A 4-element nt frequency list [%A, %C, %G, %T].
+        germ_muta_rate: A scalar in [0, 1].
+        soma_muta_rate: A scalar in [0, 1].
+        dc_nt_freq: A 4-element Dirichlet distribution parameter list.
+        dc_disp: A dispersion parameter.
+        dc_bias: A bias parameter.
 
-    Output
-    ------
-    proba   - a scalar probability value indicating the probability
-              of the read data given the parameters
-
+    Returns:
+        A scalar probability of the read data given the parameters.
     """
     proba = 0
-    # TODO: To be implemented.
+
+    # population sample mutation probability
+    parent_prob_mat = pop_sample(pop_muta_rate, pop_nt_freq)
+    pop_proba = np.sum( np.exp(parent_prob_mat) )
+
+    # germline mutation probability
+    child_prob_mat = np.zeros((
+        ut.GENOTYPE_COUNT,
+        ut.GENOTYPE_COUNT,
+        ut.GENOTYPE_COUNT
+    ))
+
+    for mother_gt, mom_idx in ut.GENOTYPE_INDEX.items():
+        for father_gt, dad_idx in ut.GENOTYPE_INDEX.items():
+            for child_gt, child_idx in ut.GENOTYPE_INDEX.items():
+                child_given_parent = germ_muta(child_gt, mother_gt,
+                                               father_gt, germ_muta_rate)
+                parent = parent_prob_mat[mom_idx, dad_idx]
+                event = child_given_parent * np.exp(parent)  # latter in log form
+                child_prob_mat[mom_idx, dad_idx, child_idx] = event
+    germ_proba = np.sum(child_prob_mat)
+
+    # somatic mutation probability
+
+    # sequencing error probability
+
     return proba
 
 # Usage:
@@ -77,29 +90,24 @@ def trio_prob(read_child, read_mom, read_dad,
 # proba = seq_error(error_rate, priors_mat, reads)
 def seq_error(error_rate, priors_mat, read_counts):
     """
-    Calculate the probability of sequencing error 
-
-    Input
-    ------
-    error_rate          - the sequencing error rate as a float
-    priors_mat          - 16 x 4 x 4 numpy array of the Dirichlet 
-                          distribution priors for DCM corresponding to
-                          16 genotype possibilities x 4 reference allele
-                          possibilities
-    read_counts         - a list of form [#A, #C, #T, #G] of nucleotide reads
-
-    Output
-    ------
-    Returns 16 x 4 probability matrix in log base e space
-
-    Assumes each chromosome is equally-likely to be sequenced
+    Calculate the probability of sequencing error. Assume each chromosome is
+    equally-likely to be sequenced.
 
     The probability is drawn from a Dirichlet multinomial distribution:
-    this is a point of divergence from the Cartwright et al. paper mentioned
-    in the other functions
+    This is a point of divergence from the Cartwright et al. paper mentioned
+    in the other functions.
 
+    Args:
+        error_rate: The sequencing error rate as a float.
+        priors_mat: A 16 x 4 x 4 numpy array of the Dirichlet distribution
+            priors for DCM corresponding to 16 genotype possibilities
+            x 4 reference allele possibilities.
+        read_counts: A list of nucleotide reads [#A, #C, #T, #G].
+
+    Returns:
+        A 16 x 4 probability matrix in log base e space.
     """
-    # alpha_mat = error_rate * priors_mat # unused
+    # alpha_mat = error_rate * priors_mat  # unused
     proba_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.NUCLEOTIDE_COUNT ))
     for i in range(ut.GENOTYPE_COUNT):
         for j in range(ut.NUCLEOTIDE_COUNT):
@@ -109,11 +117,18 @@ def seq_error(error_rate, priors_mat, read_counts):
 
 def soma_muta(soma1, chrom1, muta_rate):
     """
-    Calculate the probability of somatic mutation
+    Calculate the probability of somatic mutation.
 
     Terms refer to that of equation 5 on page 7 of Cartwright et al.: Family-
-    Based Method for Capturing De Novo Mutations
+    Based Method for Capturing De Novo Mutations.
 
+    Args:
+        soma1: A nucleotide character.
+        chrom1: Another nucleotide chracter to be compared.
+        muta_rate: The mutation rate.
+
+    Returns:
+        The probability of somatic mutation.
     """
     exp_term = np.exp(-4.0/3.0 * muta_rate)
     term1 = 0.25 - 0.25 * exp_term
@@ -126,19 +141,25 @@ def soma_muta(soma1, chrom1, muta_rate):
 
 def germ_muta(child_chrom, mom_chrom, dad_chrom, muta_rate):
     """
-    Determine the probability of germline mutations and parent chromosome 
-    donation in the same step
-    Assumes first chromosome is associated with the mother and
-    second chromosome is associated with the father
+    Calculate the probability of germline mutation and parent chromosome 
+    donation in the same step. Assume the first chromosome is associated with
+    the mother and the second chromosome is associated with the father.
 
+    Args:
+        child_chrom: The 2-allele genotype string of the child.
+        mom_chrom: The 2-allele genotype string of the mother.
+        dad_chrom: The 2-allele genotype string of the father.
+        muta_rate: The mutation rate.
+
+    Returns:
+        The probability of germline mutation.
     """
+    exp_term = math.exp(-4.0/3.0 * muta_rate)
+    homo_match = 0.25 + 0.75 * exp_term
+    hetero_match = 0.25 + 0.25 * exp_term
+    no_match = 0.25 - 0.25 * exp_term
 
     def get_term_match(parent_chrom, child_chrom_base):
-        exp_term = math.exp(-4.0/3.0 * muta_rate)
-        homo_match = 0.25 + 0.75 * exp_term
-        hetero_match = 0.25 + 0.25 * exp_term
-        no_match = 0.25 - 0.25 * exp_term
-
         if child_chrom_base in parent_chrom:
             if parent_chrom[0] == parent_chrom[1]:
                 return homo_match
@@ -153,72 +174,61 @@ def germ_muta(child_chrom, mom_chrom, dad_chrom, muta_rate):
 
 def pop_sample(muta_rate, nt_freq):
     """
-    Given a mutation rate parameter theta and
-    a set of nucleotide appearance frequencies in the gene pool 
-    (alpha_A, alpha_C, alpha_G, alpha_T),
-    return a 16x16 probability matrix
-    where the ij'th entry in the matrix is the probability that
-    the mother has genotype i and the father has genotype j where
-    i, j \in {AA, AC, AG, AT, 
-              CA, CC, CG, CT,
-              GA, GC, GG, GT,
-              TA, TC, TG, TT}
-    and probabilities are drawn from a Dirichlet multinomial distribution
-
-    The 16 x 16 matrix is an order-relevant representation of
-    the possible events in the sample space where the first
-    dimension is one parent 2-allele genotype (at the nucleotide
-    level a size 4 * 4 = 16 sample space) and the second dimension
-    is the 2-allele genotype of another parent. For example
-
-        P1/P2 | AA | AC | AG | AT | CA | CC | CG | CT | GA | ...
-        -----
-         AA   
-         --
-         AC
-         --
-         AG
-         --
-         AT
-         --
-         CA
-         --
-         .
-         .
-         .
-
     The multinomial component of the model generates the nucleotide frequency
     parameter vector (alpha_A, alpha_C, alpha_G, alpha_T) based on the
     nucleotide count input data.
 
-    The Dirichlet component of our models 
-    uses this frequency parameter vector along with
-    the 
-        mutation rate, theta; 
-        nucleotide frequences, [alpha_A, alpha_C, alpha_G, alpha_T]
-        the genome nucleotide counts, [n_A, n_C, n_G, n_T]; and  
+    Probabilities are drawn from a Dirichlet multinomial distribution
+    (see pdf). The Dirichlet component of our models uses this frequency
+    parameter vector in addition to the mutation rate (theta), nucleotide
+    frequencies [alpha_A, alpha_C, alpha_G, alpha_T], and genome nucleotide
+    counts [n_A, n_C, n_G, n_T].
 
-    and draws probabilities from the pdf
-        \frac{\gamma(\theta)}{\gamma(\theta + N)} *
-            \Pi_{i = A, C, G, T} \frac{\gamma(\alpha_i * \theta + n_i)}
-                                      {\gamma(\alpha_i * \theta}
-
-    We refer to the first term in the product as the constant_term 
-    (because its value doesn't vary with the number of nucleotide counts) and
-    the second term in the product as the product_term
-
-    Values are calculated and returned in log base e space
-
-    For example the genome mutation rate, theta, may be the small scalar
-    quantity \theta = 0.00025, the frequency parameter
-    vector (alpha_A, alpha_C, alpha_G, alpha_T) = (0.25, 0.25, 0.25, 0.25),
-    the genome nucleotide counts (n_A, n_C, n_G, n_T) = (4, 0, 0, 0) for
-    the event that both the mother and the father have genotype AA, 
+    For example: The genome mutation rate (theta) may be the small scalar
+    quantity \theta = 0.00025, the frequency parameter vector
+    (alpha_A, alpha_C, alpha_G, alpha_T) = (0.25, 0.25, 0.25, 0.25),
+    the genome nucleotide counts (n_A, n_C, n_G, n_T) = (4, 0, 0, 0), for
+    the event that both the mother and the father have genotype AA,
     resulting in N = 4.
 
-    Note: this model does not follow that of the Cartwright paper mentioned
-    in other functions
+    Note: This model does not follow that of the Cartwright paper mentioned
+    in other functions.
 
+    Args:
+        muta_rate: A mutation rate parameter theta
+        nt_freq: A set of nucleotide appearance frequencies in the gene pool
+            (alpha_A, alpha_C, alpha_G, alpha_T).
+
+    Returns:
+        A 16 x 16 probability matrix in log e space where the (i, j) element
+        in the matrix is the probability that the mother has genotype i and
+        the father has genotype j where i, j \in
+        {AA, AC, AG, AT, 
+         CA, CC, CG, CT,
+         GA, GC, GG, GT,
+         TA, TC, TG, TT}
+
+        The matrix is an order-relevant representation of the possible events
+        in the sample space where the first dimension is one parent 2-allele
+        genotype (at the nucleotide level a size 4 * 4 = 16 sample space) and
+        the second dimension is the 2-allele genotype of another parent. For
+        example:
+
+        P1/P2 | AA | AC | AG | AT | CA | CC | CG | CT | GA | ...
+        -----
+        AA   
+        --
+        AC
+        --
+        AG
+        --
+        AT
+        --
+        CA
+        --
+        .
+        .
+        .
     """
     # combine parameters for call to dirichlet multinomial
     muta_nt_freq = [i * muta_rate for i in nt_freq]  # can use numpy arr

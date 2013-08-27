@@ -1,17 +1,17 @@
 #!/usr/bin/env python
-import math
 import itertools
+import math
+
 import numpy as np
 
 # global constants for specifiying array size
-# nt - nucleotide
-# gt - genotype
 NUCLEOTIDES = ['A', 'C', 'G', 'T']
 NUCLEOTIDE_COUNT = len(NUCLEOTIDES)  # 4
 NUCLEOTIDE_INDEX = {nt: i for i, nt in enumerate(NUCLEOTIDES)}
 
 # is the order of genotypes relevant?
 # use of genotype and index is consistent
+# lexicographical ordered set of 2 nucleotide strings
 GENOTYPES = ['%s%s' % pair
     for pair in itertools.product(NUCLEOTIDES, repeat=2)
 ]
@@ -24,15 +24,13 @@ GENOTYPE_LEFT_EQUIV = {
 }
 GENOTYPE_RIGHT_EQUIV = {v: k for k, v in GENOTYPE_LEFT_EQUIV.items()}
 
+
 def two_parent_counts():
     """
-    Return the 16 x 16 x 4 numpy array of genotype counts where the
-    ijk'th entry of the array is the count of nucleotide k
-    in the i'th mother genotype and the j'th father genotype with
-    mother and father genotypes in the lexicographical ordered set
-    of 2 nucleotide strings
-        {'AA', 'AC', 'AG', 'AT', 'CA', ...}
-    
+    Returns:
+        A 16 x 16 x 4 numpy array of genotype counts where the (i, j) element
+        of the array is the count of nucleotide k in the i'th mother genotype
+        and the j'th father genotype with mother and father genotypes.
     """
     gt_count = np.zeros((
         GENOTYPE_COUNT,
@@ -40,8 +38,8 @@ def two_parent_counts():
         NUCLEOTIDE_COUNT
     ))
     one_vec = np.ones((GENOTYPE_COUNT))
-    for nt_idx, nt in enumerate(NUCLEOTIDES):
-        for gt_idx, gt in enumerate(GENOTYPES):
+    for nt, nt_idx in NUCLEOTIDE_INDEX.items():
+        for gt, gt_idx in GENOTYPE_INDEX.items():
             for base in gt:
                 if base == nt:
                     gt_count[gt_idx, :, nt_idx] += one_vec  # mother
@@ -51,16 +49,17 @@ def two_parent_counts():
 
 def one_parent_counts():
     """
-    Count the nucleotide frequencies for the 16 different 2-allele genotypes
+    Count the nucleotide frequencies for the 16 different 2-allele genotypes.
 
-    Return a 16 x 4 np.array whose first dimension corresponds to the
-    genotypes and whose second dimension is the frequency of each nucleotide
-    
+    Returns:
+        A 16 x 4 numpy array where row/first dimension corresponds to the
+        genotypes and column/second dimension is the frequency of each
+        nucleotide.
     """
     counts = np.zeros(( GENOTYPE_COUNT, NUCLEOTIDE_COUNT ))
-    for gt_idx, gt in enumerate(GENOTYPES):
+    for gt, gt_idx in GENOTYPE_INDEX.items():
         count_list = [0.0] * NUCLEOTIDE_COUNT
-        for nt_idx, nt in enumerate(NUCLEOTIDES):
+        for nt, nt_idx in NUCLEOTIDE_INDEX.items():
             for base in gt:
                 if base == nt:
                     count_list[nt_idx] += 1
@@ -70,10 +69,14 @@ def one_parent_counts():
 
 def enum_nt_counts(size):
     """
-    Enumerate all nucleotide strings of a given size in lexicographic order
-    and return a 4^size x 4 numpy array of nucleotide counts associated
-    with the strings
+    Enumerate all nucleotide strings of a given size in lexicographic order.
 
+    Args:
+        size: The length of the nucleotide string.
+
+    Returns:
+        A 4^size x 4 numpy array of nucleotide counts associated with the
+        strings.
     """
     nt_counts = np.zeros((
         math.pow(NUCLEOTIDE_COUNT, size),
@@ -95,12 +98,13 @@ def dc_alpha_parameters():
     """
     Generate Dirichlet multinomial alpha parameters
     alpha = (alpha_1, ..., alpha_K) for a K-category Dirichlet distribution
-    (where K = 4 = #nt) that vary with each combination of parental 
-    genotype and reference nt
+    (where K = 4 = #nt) that vary with each combination of parental
+    genotype and reference nt.
 
+    Returns:
+        A 16 x 4 x 4 numpy array (parental genotype, reference nt,
+        and alpha vector).
     """
-    # parental genotype, reference nt, alpha vector
-    # 16 x 4 x 4 matrix
     alpha_mat = np.empty((
         GENOTYPE_COUNT,
         NUCLEOTIDE_COUNT,

@@ -7,17 +7,19 @@ P(R) probability of sequencing reads
 P(T) requires no conditioning
 P(S) = \sum_T P(T) * P(S|T)
 P(R) = \sum_S P(S) * P(R|S)
-
 """
-import unittest
 import math
+import unittest
+
 import numpy as np
 
+from family import pdf
 from family import trio_model as fm
 from family import utilities as ut
-from family import pdf
+
 
 class TestTree(unittest.TestCase):
+
     def setUp(self):
         self.muta_rate = 0.001
         self.nt_freq = [0.25] * ut.NUCLEOTIDE_COUNT
@@ -100,7 +102,7 @@ class TestTree(unittest.TestCase):
         # compute probabilities of sequencing error
         nt_string_size = 2
         nt_counts = ut.enum_nt_counts(nt_string_size)
-        n_strings = int(math.pow( ut.NUCLEOTIDE_COUNT, nt_string_size ))
+        n_strings = int( math.pow(ut.NUCLEOTIDE_COUNT, nt_string_size) )
         alpha_params = np.zeros(( n_strings, ut.NUCLEOTIDE_COUNT ))
         prob_read_given_soma = np.zeros((n_strings))
         for i in range(n_strings):
