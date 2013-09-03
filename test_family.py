@@ -35,24 +35,10 @@ class TestTree(unittest.TestCase):
     # at germline mutation, events should sum to 1
     # must condition on parent genotype layer
     def test_germ_muta(self):
-        child_prob_mat = np.zeros((
-            ut.GENOTYPE_COUNT,
-            ut.GENOTYPE_COUNT,
-            ut.GENOTYPE_COUNT
-        ))
-
-        for mother_gt, mom_idx in ut.GENOTYPE_INDEX.items():
-            for father_gt, dad_idx in ut.GENOTYPE_INDEX.items():
-                for child_gt, child_idx in ut.GENOTYPE_INDEX.items():
-                    child_given_parent = fm.germ_muta(
-                        child_gt,
-                        mother_gt,
-                        father_gt,
-                        self.muta_rate
-                    )
-                    parent = self.parent_prob_mat[mom_idx, dad_idx]  # log
-                    event = child_given_parent * np.exp(parent)
-                    child_prob_mat[mom_idx, dad_idx, child_idx] = event
+        child_prob_mat = fm.get_child_prob_mat(
+            self.parent_prob_mat,
+            self.muta_rate
+        )
         proba = np.sum(child_prob_mat)
         self.assertAlmostEqual(proba, 1)
 

@@ -54,74 +54,34 @@ def trio_prob(read_child, read_mom, read_dad,
     Returns:
         A scalar probability of the read data given the parameters.
     """
+    # where are reads passed as arguments?
+    # dc_disp and dc_bias are unused
+
     # population sample mutation probability
-    parent_prob_mat = fm.pop_sample(pop_muta_rate, pop_nt_freq)
+    parent_prob_mat = pop_sample(pop_muta_rate, pop_nt_freq)
     pop_proba = ut.sum_exp(parent_prob_mat)
 
     # germline mutation probability
-    child_prob_mat = np.zeros((
-        ut.GENOTYPE_COUNT,
-        ut.GENOTYPE_COUNT,
-        ut.GENOTYPE_COUNT
-    ))
-
-    for mother_gt, mom_idx in ut.GENOTYPE_INDEX.items():
-        for father_gt, dad_idx in ut.GENOTYPE_INDEX.items():
-            for child_gt, child_idx in ut.GENOTYPE_INDEX.items():
-                child_given_parent = germ_muta(
-                    child_gt,
-                    mother_gt,
-                    father_gt,
-                    germ_muta_rate
-                )
-                parent = parent_prob_mat[mom_idx, dad_idx]  # log
-                event = child_given_parent * np.exp(parent)
-                child_prob_mat[mom_idx, dad_idx, child_idx] = event
+    child_prob_mat = get_child_prob_mat(parent_prob_mat, germ_muta_rate)
     germ_proba = np.sum(child_prob_mat)
 
     # somatic mutation probability
-    # compute event space for somatic nucleotide
-    # given a genotype nucleotide for a single chromosome
-    prob_vec = np.zeros(( ut.NUCLEOTIDE_COUNT, ut.NUCLEOTIDE_COUNT ))
-    for soma_nt, i in ut.NUCLEOTIDE_INDEX.items():
-        for geno_nt, j in ut.NUCLEOTIDE_INDEX.items():
-            prob_vec[i, j] = soma_muta(soma_nt, geno_nt, soma_muta_rate)
-
-    # combine event spaces for two chromosomes (independent of each other)
-    # and call resulting 16x16 matrix soma_given_geno
-    # first dimension lexicographical order of pairs of letters from 
-    # nt alphabet for somatic genotypes
-    # second dimension is that for true genotypes
-    soma_given_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
-    for chrom1, i in ut.NUCLEOTIDE_INDEX.items():
-        given_chrom1_vec = prob_vec[:, i]
-        for chrom2, j in ut.NUCLEOTIDE_INDEX.items():
-            given_chrom2_vec = prob_vec[:, i]
-            soma_muta_index = i * ut.NUCLEOTIDE_COUNT + j
-            outer_prod = np.outer(given_chrom1_vec, given_chrom2_vec)
-            outer_prod_flat = outer_prod.flatten()
-            soma_given_geno[:, soma_muta_index] = outer_prod_flat
-
-    # with the event space from the somatic mutation step calculated
-    # we can now assign a pdf to the true genotype event space
+    soma_given_geno = get_soma_given_geno(soma_muta_rate)
+    # assign a pdf to the true genotype event space
     # based on the previous layer
 
-    # collapse parent prob mat into a single parent
+    # collapse parent_prob_mat into a single parent
     geno = ut.sum_exp(parent_prob_mat, axis=0)
     soma_proba = np.sum(geno)
 
-    # compute the joint probabilities
-    soma_and_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
-    for i in range(ut.GENOTYPE_COUNT):
-        soma_and_geno[:, i] = geno[i] * soma_given_geno[:, i]
-
+    soma_and_geno = join_soma(geno, soma_given_geno)
     soma_and_geno_proba = np.sum(soma_and_geno)
 
     # sequencing error probability
-    nt_counts = ut.enum_nt_counts(2)  # genotypes always 2-allele
-    proba_mat = seq_error(dc_nt_freq, nt_counts)
+    proba_mat = seq_error(dc_nt_freq, [read_child, read_mom, read_dad])
     seq_proba = ut.sum_exp(proba_mat)
 
+    # how to implement P(muta|data) = P(muta*data)/P(data)?
     return pop_proba + germ_proba + soma_and_geno_proba + seq_proba
 
 # Usage:
@@ -293,6 +253,37 @@ def germ_muta(child_chrom, mom_chrom, dad_chrom, muta_rate):
     term1 = get_term_match(mom_chrom, child_chrom[0])
     term2 = get_term_match(dad_chrom, child_chrom[1])
     return term1 * term2
+
+def get_child_prob_mat(parent_prob_mat, muta_rate):
+    """
+    Calculate the probability matrix for the offspring given the probability
+    matrix of the parents and mutation rate.
+
+    Args:
+        parent_prob_mat: The 16 x 16 probability matrix of the parents in
+        log e space (see pop_sample).
+        muta_rate: The mutation rate.
+    """
+    child_prob_mat = np.zeros((
+        ut.GENOTYPE_COUNT,
+        ut.GENOTYPE_COUNT,
+        ut.GENOTYPE_COUNT
+    ))
+
+    for mother_gt, mom_idx in ut.GENOTYPE_INDEX.items():
+        for father_gt, dad_idx in ut.GENOTYPE_INDEX.items():
+            for child_gt, child_idx in ut.GENOTYPE_INDEX.items():
+                child_given_parent = germ_muta(
+                    child_gt,
+                    mother_gt,
+                    father_gt,
+                    muta_rate
+                )
+                parent = parent_prob_mat[mom_idx, dad_idx]  # log
+                event = child_given_parent * np.exp(parent)
+                child_prob_mat[mom_idx, dad_idx, child_idx] = event
+
+    return child_prob_mat
 
 def pop_sample(muta_rate, nt_freq):
     """
