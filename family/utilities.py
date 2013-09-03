@@ -48,10 +48,10 @@ def dirichlet_multinomial(alpha, n):
     """
     N = sum(n)
     A = sum(alpha)
-    constant_term = (sp.gammaln(A) - sp.gammaln(N + A))
+    constant_term = sp.gammaln(A) - sp.gammaln(N + A)
     product_term = 0
-    for i in range(len(n)):
-        product_term += (sp.gammaln(alpha[i] + n[i]) - sp.gammaln(alpha[i]))
+    for i, count in enumerate(n):
+        product_term += sp.gammaln(alpha[i] + count) - sp.gammaln(alpha[i])
     return constant_term + product_term
 
 def dc_alpha_parameters():
@@ -134,3 +134,18 @@ def enum_nt_counts(size):
             for i in range(first_shape[0]):
                 nt_counts[i+j*NUCLEOTIDE_COUNT, :] = (first[i, :] + second[j, :])
         return nt_counts
+
+def sum_exp(arr, axis=None):
+    """
+    Sum the exponentials of all specified elements in an array.
+
+    Args:
+        arr: A numpy array.
+        axis (optional): The axis to calculate the sum.
+
+    Returns:
+        The sum of the exponentials of all elements in the array (calculated
+        probability given a probability matrix), or an array of the sum
+        calculated over an axis.
+    """
+    return np.sum( np.exp(arr), axis=axis )

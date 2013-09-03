@@ -54,11 +54,9 @@ def trio_prob(read_child, read_mom, read_dad,
     Returns:
         A scalar probability of the read data given the parameters.
     """
-    proba = 0
-
     # population sample mutation probability
-    parent_prob_mat = pop_sample(pop_muta_rate, pop_nt_freq)
-    pop_proba = np.sum( np.exp(parent_prob_mat) )
+    parent_prob_mat = fm.pop_sample(pop_muta_rate, pop_nt_freq)
+    pop_proba = ut.sum_exp(parent_prob_mat)
 
     # germline mutation probability
     child_prob_mat = np.zeros((
@@ -70,18 +68,61 @@ def trio_prob(read_child, read_mom, read_dad,
     for mother_gt, mom_idx in ut.GENOTYPE_INDEX.items():
         for father_gt, dad_idx in ut.GENOTYPE_INDEX.items():
             for child_gt, child_idx in ut.GENOTYPE_INDEX.items():
-                child_given_parent = germ_muta(child_gt, mother_gt,
-                                               father_gt, germ_muta_rate)
-                parent = parent_prob_mat[mom_idx, dad_idx]
-                event = child_given_parent * np.exp(parent)  # latter in log form
+                child_given_parent = germ_muta(
+                    child_gt,
+                    mother_gt,
+                    father_gt,
+                    germ_muta_rate
+                )
+                parent = parent_prob_mat[mom_idx, dad_idx]  # log
+                event = child_given_parent * np.exp(parent)
                 child_prob_mat[mom_idx, dad_idx, child_idx] = event
     germ_proba = np.sum(child_prob_mat)
 
     # somatic mutation probability
+    # compute event space for somatic nucleotide
+    # given a genotype nucleotide for a single chromosome
+    prob_vec = np.zeros(( ut.NUCLEOTIDE_COUNT, ut.NUCLEOTIDE_COUNT ))
+    for soma_nt, i in ut.NUCLEOTIDE_INDEX.items():
+        for geno_nt, j in ut.NUCLEOTIDE_INDEX.items():
+            prob_vec[i, j] = soma_muta(soma_nt, geno_nt, soma_muta_rate)
+
+    # combine event spaces for two chromosomes (independent of each other)
+    # and call resulting 16x16 matrix soma_given_geno
+    # first dimension lexicographical order of pairs of letters from 
+    # nt alphabet for somatic genotypes
+    # second dimension is that for true genotypes
+    soma_given_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
+    for chrom1, i in ut.NUCLEOTIDE_INDEX.items():
+        given_chrom1_vec = prob_vec[:, i]
+        for chrom2, j in ut.NUCLEOTIDE_INDEX.items():
+            given_chrom2_vec = prob_vec[:, i]
+            soma_muta_index = i * ut.NUCLEOTIDE_COUNT + j
+            outer_prod = np.outer(given_chrom1_vec, given_chrom2_vec)
+            outer_prod_flat = outer_prod.flatten()
+            soma_given_geno[:, soma_muta_index] = outer_prod_flat
+
+    # with the event space from the somatic mutation step calculated
+    # we can now assign a pdf to the true genotype event space
+    # based on the previous layer
+
+    # collapse parent prob mat into a single parent
+    geno = ut.sum_exp(parent_prob_mat, axis=0)
+    soma_proba = np.sum(geno)
+
+    # compute the joint probabilities
+    soma_and_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
+    for i in range(ut.GENOTYPE_COUNT):
+        soma_and_geno[:, i] = geno[i] * soma_given_geno[:, i]
+
+    soma_and_geno_proba = np.sum(soma_and_geno)
 
     # sequencing error probability
+    nt_counts = ut.enum_nt_counts(2)  # genotypes always 2-allele
+    proba_mat = seq_error(dc_nt_freq, nt_counts)
+    seq_proba = ut.sum_exp(proba_mat)
 
-    return proba
+    return pop_proba + germ_proba + soma_and_geno_proba + seq_proba
 
 # Usage:
 # error_rate = 0.001
@@ -134,24 +175,9 @@ def seq_error(priors_mat, reads):
     """
     prob_read_given_soma = np.zeros((ut.GENOTYPE_COUNT))
     for i, read in enumerate(reads):
-        prob_read_given_soma[i] = pdf.dirichlet_multinomial(priors_mat, read)
+        prob_read_given_soma[i] = ut.dirichlet_multinomial(priors_mat, read)
 
-    return sum_exp(prob_read_given_soma)
-
-def sum_exp(arr, axis=None):
-    """
-    Sum the exponentials of all specified elements in an array.
-
-    Args:
-        arr: A numpy array.
-        axis (optional): The axis to calculate the sum.
-
-    Returns:
-        The sum of the exponentials of all elements in the array (calculated
-        probability given a probability matrix), or an array of the sum
-        calculated over an axis.
-    """
-    return np.sum( np.exp(arr), axis=axis )
+    return prob_read_given_soma
 
 def soma_muta(soma1, chrom1, muta_rate):
     """
@@ -278,7 +304,7 @@ def pop_sample(muta_rate, nt_freq):
     for i in range(ut.GENOTYPE_COUNT):
         for j in range(ut.GENOTYPE_COUNT):
             nt_count = gt_count[i, j, :]
-            log_proba = pdf.dirichlet_multinomial(muta_nt_freq, nt_count)
+            log_proba = ut.dirichlet_multinomial(muta_nt_freq, nt_count)
             proba_mat[i, j] = log_proba
 
     return proba_mat

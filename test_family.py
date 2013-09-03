@@ -29,7 +29,7 @@ class TestTree(unittest.TestCase):
     # at population sample, events should sum to 1
     def test_pop_sample(self):
         parent_prob_mat = fm.pop_sample(self.muta_rate, self.nt_freq)
-        proba = fm.sum_exp(parent_prob_mat)
+        proba = ut.sum_exp(parent_prob_mat)
         self.assertAlmostEqual(proba, 1)
 
     # at germline mutation, events should sum to 1
@@ -86,7 +86,7 @@ class TestTree(unittest.TestCase):
         # based on the previous layer
 
         # collapse parent prob mat into a single parent
-        geno = fm.sum_exp(self.parent_prob_mat, axis=0)
+        geno = ut.sum_exp(self.parent_prob_mat, axis=0)
         # print(geno) # matrix
         proba = np.sum(geno)
         self.assertAlmostEqual(proba, 1)
@@ -102,7 +102,8 @@ class TestTree(unittest.TestCase):
 
     def test_seq_error(self):
         nt_counts = ut.enum_nt_counts(2)  # genotypes always 2-allele
-        proba = fm.seq_error(self.nt_freq, nt_counts)
+        proba_mat = fm.seq_error(self.nt_freq, nt_counts)
+        proba = ut.sum_exp(proba_mat)
         self.assertAlmostEqual(proba, 1)
 
     def test_trio_prob(self):
