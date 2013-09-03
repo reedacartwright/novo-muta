@@ -59,46 +59,18 @@ class TestTree(unittest.TestCase):
     # at somatic mutation, events should sum to 1
     # must condition on parent genotype layer
     def test_soma_muta(self):
-        # compute event space for somatic nucleotide
-        # given a genotype nucleotide for a single chromosome
-        prob_vec = np.zeros(( ut.NUCLEOTIDE_COUNT, ut.NUCLEOTIDE_COUNT ))
-        for soma_nt, i in ut.NUCLEOTIDE_INDEX.items():
-            for geno_nt, j in ut.NUCLEOTIDE_INDEX.items():
-                prob_vec[i, j] = fm.soma_muta(soma_nt, geno_nt, self.muta_rate)
-
-        # combine event spaces for two chromosomes (independent of each other)
-        # and call resulting 16x16 matrix soma_given_geno
-        # first dimension lexicographical order of pairs of letters from 
-        # nt alphabet for somatic genotypes
-        # second dimension is that for true genotypes
-        soma_given_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
-        for chrom1, i in ut.NUCLEOTIDE_INDEX.items():
-            given_chrom1_vec = prob_vec[:, i]
-            for chrom2, j in ut.NUCLEOTIDE_INDEX.items():
-                given_chrom2_vec = prob_vec[:, i]
-                soma_muta_index = i * ut.NUCLEOTIDE_COUNT + j
-                outer_prod = np.outer(given_chrom1_vec, given_chrom2_vec)
-                outer_prod_flat = outer_prod.flatten()
-                soma_given_geno[:, soma_muta_index] = outer_prod_flat
-
-        # with the event space from the somatic mutation step calculated
-        # we can now assign a pdf to the true genotype event space
+        soma_given_geno = fm.get_soma_given_geno(self.muta_rate)
+        # assign a pdf to the true genotype event space
         # based on the previous layer
 
-        # collapse parent prob mat into a single parent
+        # collapse parent_prob_mat into a single parent
         geno = ut.sum_exp(self.parent_prob_mat, axis=0)
-        # print(geno) # matrix
         proba = np.sum(geno)
         self.assertAlmostEqual(proba, 1)
 
-        # compute the joint probabilities
-        soma_and_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
-        for i in range(ut.GENOTYPE_COUNT):
-            soma_and_geno[:, i] = geno[i] * soma_given_geno[:, i]
-
-        # prob_soma = np.sum(soma_and_geno, 0) # matrix
-        proba_soma = np.sum(soma_and_geno)
-        self.assertAlmostEqual(proba_soma, 1)
+        soma_and_geno = fm.join_soma(geno, soma_given_geno)
+        soma_proba = np.sum(soma_and_geno)
+        self.assertAlmostEqual(soma_proba, 1)
 
     def test_seq_error(self):
         nt_counts = ut.enum_nt_counts(2)  # genotypes always 2-allele

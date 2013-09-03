@@ -58,7 +58,7 @@ def dc_alpha_parameters():
     """
     Generate Dirichlet multinomial alpha parameters
     alpha = (alpha_1, ..., alpha_K) for a K-category Dirichlet distribution
-    (where K = 4 = #nt) that vary with each combination of parental
+    (where K = 4 = NUCLEOTIDE_COUNT) that vary with each combination of parental
     genotype and reference nt.
 
     Returns:

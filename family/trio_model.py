@@ -165,13 +165,12 @@ def seq_error(priors_mat, reads):
 
     Args:
         priors_mat: A 1 x 4 numpy array of the Dirichlet distribution
-            priors for DCM.
+            priors.
         reads: A 2d array of nucleotide reads
             [[#A, #C, #T, #G], [#A, #C, #T, #G],].
 
     Returns:
-        A scalar probability calculated by sum of probability matrix in
-        log base e space.
+        A probability matrix.
     """
     prob_read_given_soma = np.zeros((ut.GENOTYPE_COUNT))
     for i, read in enumerate(reads):
@@ -179,7 +178,7 @@ def seq_error(priors_mat, reads):
 
     return prob_read_given_soma
 
-def soma_muta(soma1, chrom1, muta_rate):
+def soma_muta(soma, chrom, muta_rate):
     """
     Calculate the probability of somatic mutation.
 
@@ -199,9 +198,68 @@ def soma_muta(soma1, chrom1, muta_rate):
     # term2 is indicator term
 
     # check if indicator function is true for each chromosome
-    ind_term_chrom1 = exp_term if soma1 == chrom1 else 0
+    ind_term_chrom1 = exp_term if soma == chrom else 0
 
     return term1 + ind_term_chrom1
+
+def get_soma_vec(muta_rate):
+    """
+    Compute event space for somatic nucleotide given a genotype nucleotide
+    for a single chromosome.
+
+    Args:
+        muta_rate: The mutation rate.
+
+    Returns:
+        A 4 x 4 probability vector.
+    """
+    prob_vec = np.zeros(( ut.NUCLEOTIDE_COUNT, ut.NUCLEOTIDE_COUNT ))
+    for soma_nt, i in ut.NUCLEOTIDE_INDEX.items():
+        for geno_nt, j in ut.NUCLEOTIDE_INDEX.items():
+            prob_vec[i, j] = soma_muta(soma_nt, geno_nt, muta_rate)
+    return prob_vec
+
+def get_soma_given_geno(muta_rate):
+    """
+    Combine event spaces for two chromosomes (independent of each other).
+
+    Args:
+        muta_rate: The mutation rate.
+
+    Returns:
+        A 16 x 16 matrix where the first dimension is the lexicographically
+        ordered pairs of letters from nt alphabet for somatic genotypes and
+        second dimension is that for true genotypes.
+    """
+    prob_vec = get_soma_vec(muta_rate)
+    soma_given_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
+    for chrom1, i in ut.NUCLEOTIDE_INDEX.items():
+        given_chrom1_vec = prob_vec[:, i]
+        for chrom2, j in ut.NUCLEOTIDE_INDEX.items():
+            given_chrom2_vec = prob_vec[:, i]
+            soma_muta_index = i * ut.NUCLEOTIDE_COUNT + j
+            outer_prod = np.outer(given_chrom1_vec, given_chrom2_vec)
+            outer_prod_flat = outer_prod.flatten()
+            soma_given_geno[:, soma_muta_index] = outer_prod_flat
+    return soma_given_geno
+
+def join_soma(geno, soma_given_geno):
+    """
+    Compute the joint probabilities.
+
+    Args:
+        geno: Probability array containing genotypes for one parent.
+        soma_given_geno: A 16 x 16 matrix where the first dimension is the
+            lexicographically ordered pairs of letters from nt alphabet for
+            somatic genotypes and second dimension is that for true genotypes.
+
+    Returns:
+        A 16 x 16 probability matrix.
+    """
+    soma_and_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
+    for i in range(ut.GENOTYPE_COUNT):
+        soma_and_geno[:, i] = geno[i] * soma_given_geno[:, i]
+    return soma_and_geno
 
 def germ_muta(child_chrom, mom_chrom, dad_chrom, muta_rate):
     """
@@ -242,11 +300,11 @@ def pop_sample(muta_rate, nt_freq):
     parameter vector (alpha_A, alpha_C, alpha_G, alpha_T) based on the
     nucleotide count input data.
 
-    Probabilities are drawn from a Dirichlet multinomial distribution
-    (see pdf). The Dirichlet component of our models uses this frequency
-    parameter vector in addition to the mutation rate (theta), nucleotide
-    frequencies [alpha_A, alpha_C, alpha_G, alpha_T], and genome nucleotide
-    counts [n_A, n_C, n_G, n_T].
+    Probabilities are drawn from a Dirichlet multinomial distribution. The
+    Dirichlet component of our models uses this frequency parameter vector in
+    addition to the mutation rate (theta), nucleotide frequencies
+    [alpha_A, alpha_C, alpha_G, alpha_T], and genome nucleotide counts
+    [n_A, n_C, n_G, n_T].
 
     For example: The genome mutation rate (theta) may be the small scalar
     quantity \theta = 0.00025, the frequency parameter vector
@@ -259,18 +317,17 @@ def pop_sample(muta_rate, nt_freq):
     in other functions.
 
     Args:
-        muta_rate: A mutation rate parameter theta
+        muta_rate: A mutation rate parameter theta.
         nt_freq: A set of nucleotide appearance frequencies in the gene pool
             (alpha_A, alpha_C, alpha_G, alpha_T).
 
     Returns:
         A 16 x 16 probability matrix in log e space where the (i, j) element
         in the matrix is the probability that the mother has genotype i and
-        the father has genotype j where i, j \in
-        {AA, AC, AG, AT, 
-         CA, CC, CG, CT,
-         GA, GC, GG, GT,
-         TA, TC, TG, TT}
+        the father has genotype j where i, j \in {AA, AC, AG, AT, 
+                                                  CA, CC, CG, CT,
+                                                  GA, GC, GG, GT,
+                                                  TA, TC, TG, TT}.
 
         The matrix is an order-relevant representation of the possible events
         in the sample space where the first dimension is one parent 2-allele
@@ -296,14 +353,11 @@ def pop_sample(muta_rate, nt_freq):
     """
     # combine parameters for call to dirichlet multinomial
     muta_nt_freq = np.array([i * muta_rate for i in nt_freq])
-
-    # 16 x 16 lexicographical ordering of 2-allele genotypes
-    #    x 4  types of nucleotides (2 parents x 2-allele genotypes)
     gt_count = ut.two_parent_counts()
     proba_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
     for i in range(ut.GENOTYPE_COUNT):
         for j in range(ut.GENOTYPE_COUNT):
-            nt_count = gt_count[i, j, :]
+            nt_count = gt_count[i, j, :]  # count per 2-allele genotype
             log_proba = ut.dirichlet_multinomial(muta_nt_freq, nt_count)
             proba_mat[i, j] = log_proba
 
