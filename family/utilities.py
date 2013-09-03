@@ -3,6 +3,7 @@ import itertools
 import math
 
 import numpy as np
+from scipy import special as sp
 
 # global constants for specifiying array size
 NUCLEOTIDES = ['A', 'C', 'G', 'T']
@@ -24,6 +25,46 @@ GENOTYPE_LEFT_EQUIV = {
 }
 GENOTYPE_RIGHT_EQUIV = {v: k for k, v in GENOTYPE_LEFT_EQUIV.items()}
 
+
+def dirichlet_multinomial(alpha, n):
+    """
+    Calculate probability from the probability density function (pdf):
+
+    \frac{\gamma(\theta)}{\gamma(\theta + N)} *
+        \Pi_{i = A, C, G, T} \frac{\gamma(\alpha_i * \theta + n_i)}
+                                  {\gamma(\alpha_i * \theta}
+
+    We refer to the first term in the product as the constant_term,
+    because its value doesn't vary with the number of nucleotide counts,
+    and the second term in the product as the product_term.
+
+    Args:
+        alpha: A list of frequencies (doubles) for each category in the
+            multinomial that sum to one.
+        n: A list of samples (integers) for each category in the multinomial.
+
+    Returns:
+        A double equal to log_e(P) where P is the value calculated from the pdf.
+    """
+    N = sum(n)
+    A = sum(alpha)
+    constant_term = (sp.gammaln(A) - sp.gammaln(N + A))
+    product_term = 0
+    for i in range(len(n)):
+        product_term += (sp.gammaln(alpha[i] + n[i]) - sp.gammaln(alpha[i]))
+    return constant_term + product_term
+
+def dc_alpha_parameters():
+    """
+    Generate Dirichlet multinomial alpha parameters
+    alpha = (alpha_1, ..., alpha_K) for a K-category Dirichlet distribution
+    (where K = 4 = #nt) that vary with each combination of parental
+    genotype and reference nt.
+
+    Returns:
+        A 1 x 4 numpy array.
+    """
+    return np.array([0.25] * NUCLEOTIDE_COUNT)
 
 def two_parent_counts():
     """
@@ -93,22 +134,3 @@ def enum_nt_counts(size):
             for i in range(first_shape[0]):
                 nt_counts[i+j*NUCLEOTIDE_COUNT, :] = (first[i, :] + second[j, :])
         return nt_counts
-
-def dc_alpha_parameters():
-    """
-    Generate Dirichlet multinomial alpha parameters
-    alpha = (alpha_1, ..., alpha_K) for a K-category Dirichlet distribution
-    (where K = 4 = #nt) that vary with each combination of parental
-    genotype and reference nt.
-
-    Returns:
-        A 16 x 4 x 4 numpy array (parental genotype, reference nt,
-        and alpha vector).
-    """
-    alpha_mat = np.empty((
-        GENOTYPE_COUNT,
-        NUCLEOTIDE_COUNT,
-        NUCLEOTIDE_COUNT
-    ))
-    alpha_mat[:] = 0.25
-    return alpha_mat

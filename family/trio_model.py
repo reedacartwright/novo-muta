@@ -88,7 +88,32 @@ def trio_prob(read_child, read_mom, read_dad,
 # priors_mat = ut.dc_alpha_parameters() 
 # reads = [10] * 4
 # proba = seq_error(error_rate, priors_mat, reads)
-def seq_error(error_rate, priors_mat, read_counts):
+# def seq_error(priors_mat, reads):
+#     """
+#     Calculate the probability of sequencing error. Assume each chromosome is
+#     equally-likely to be sequenced.
+
+#     The probability is drawn from a Dirichlet multinomial distribution:
+#     This is a point of divergence from the Cartwright et al. paper mentioned
+#     in the other functions.
+
+#     Args:
+#         priors_mat: A 16 x 4 x 4 numpy array of the Dirichlet distribution
+#             priors for DCM corresponding to 16 genotype possibilities
+#             x 4 reference allele possibilities.
+#         reads: A list of nucleotide reads [#A, #C, #T, #G].
+#         error_rate (unused): The sequencing error rate as a float.
+
+#     Returns:
+#         A 16 x 4 probability matrix in log base e space.
+#     """
+#     proba_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.NUCLEOTIDE_COUNT ))
+#     for i in range(ut.GENOTYPE_COUNT):
+#         for j in range(ut.NUCLEOTIDE_COUNT):
+#             proba_mat[i, j] = pdf.dirichlet_multinomial(priors_mat, reads)
+#     return proba_mat
+
+def seq_error(priors_mat, reads):
     """
     Calculate the probability of sequencing error. Assume each chromosome is
     equally-likely to be sequenced.
@@ -98,22 +123,35 @@ def seq_error(error_rate, priors_mat, read_counts):
     in the other functions.
 
     Args:
-        error_rate: The sequencing error rate as a float.
-        priors_mat: A 16 x 4 x 4 numpy array of the Dirichlet distribution
-            priors for DCM corresponding to 16 genotype possibilities
-            x 4 reference allele possibilities.
-        read_counts: A list of nucleotide reads [#A, #C, #T, #G].
+        priors_mat: A 1 x 4 numpy array of the Dirichlet distribution
+            priors for DCM.
+        reads: A 2d array of nucleotide reads
+            [[#A, #C, #T, #G], [#A, #C, #T, #G],].
 
     Returns:
-        A 16 x 4 probability matrix in log base e space.
+        A scalar probability calculated by sum of probability matrix in
+        log base e space.
     """
-    # alpha_mat = error_rate * priors_mat  # unused
-    proba_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.NUCLEOTIDE_COUNT ))
-    for i in range(ut.GENOTYPE_COUNT):
-        for j in range(ut.NUCLEOTIDE_COUNT):
-            proba_mat[i, j] = pdf.dirichlet_multinomial(priors_mat[i, j, :],
-                                                        read_counts)
-    return proba_mat
+    prob_read_given_soma = np.zeros((ut.GENOTYPE_COUNT))
+    for i, read in enumerate(reads):
+        prob_read_given_soma[i] = pdf.dirichlet_multinomial(priors_mat, read)
+
+    return sum_exp(prob_read_given_soma)
+
+def sum_exp(arr, axis=None):
+    """
+    Sum the exponentials of all specified elements in an array.
+
+    Args:
+        arr: A numpy array.
+        axis (optional): The axis to calculate the sum.
+
+    Returns:
+        The sum of the exponentials of all elements in the array (calculated
+        probability given a probability matrix), or an array of the sum
+        calculated over an axis.
+    """
+    return np.sum( np.exp(arr), axis=axis )
 
 def soma_muta(soma1, chrom1, muta_rate):
     """
@@ -231,7 +269,7 @@ def pop_sample(muta_rate, nt_freq):
         .
     """
     # combine parameters for call to dirichlet multinomial
-    muta_nt_freq = [i * muta_rate for i in nt_freq]  # can use numpy arr
+    muta_nt_freq = np.array([i * muta_rate for i in nt_freq])
 
     # 16 x 16 lexicographical ordering of 2-allele genotypes
     #    x 4  types of nucleotides (2 parents x 2-allele genotypes)

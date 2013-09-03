@@ -22,14 +22,14 @@ class TestTree(unittest.TestCase):
 
     def setUp(self):
         self.muta_rate = 0.001
-        self.nt_freq = [0.25] * ut.NUCLEOTIDE_COUNT
+        self.nt_freq = ut.dc_alpha_parameters()
         # assume true if pass test_pop_sample
         self.parent_prob_mat = fm.pop_sample(self.muta_rate, self.nt_freq)
         
     # at population sample, events should sum to 1
     def test_pop_sample(self):
         parent_prob_mat = fm.pop_sample(self.muta_rate, self.nt_freq)
-        proba = np.sum( np.exp(parent_prob_mat) )
+        proba = fm.sum_exp(parent_prob_mat)
         self.assertAlmostEqual(proba, 1)
 
     # at germline mutation, events should sum to 1
@@ -44,10 +44,14 @@ class TestTree(unittest.TestCase):
         for mother_gt, mom_idx in ut.GENOTYPE_INDEX.items():
             for father_gt, dad_idx in ut.GENOTYPE_INDEX.items():
                 for child_gt, child_idx in ut.GENOTYPE_INDEX.items():
-                    child_given_parent = fm.germ_muta(child_gt, mother_gt,
-                                                      father_gt, self.muta_rate)
-                    parent = self.parent_prob_mat[mom_idx, dad_idx]
-                    event = child_given_parent * np.exp(parent)  # latter in log form
+                    child_given_parent = fm.germ_muta(
+                        child_gt,
+                        mother_gt,
+                        father_gt,
+                        self.muta_rate
+                    )
+                    parent = self.parent_prob_mat[mom_idx, dad_idx]  # log
+                    event = child_given_parent * np.exp(parent)
                     child_prob_mat[mom_idx, dad_idx, child_idx] = event
         proba = np.sum(child_prob_mat)
         self.assertAlmostEqual(proba, 1)
@@ -82,8 +86,7 @@ class TestTree(unittest.TestCase):
         # based on the previous layer
 
         # collapse parent prob mat into a single parent
-        parent_prob_mat_exp = np.exp(self.parent_prob_mat)
-        geno = np.sum(parent_prob_mat_exp, 0)
+        geno = fm.sum_exp(self.parent_prob_mat, axis=0)
         # print(geno) # matrix
         proba = np.sum(geno)
         self.assertAlmostEqual(proba, 1)
@@ -97,21 +100,9 @@ class TestTree(unittest.TestCase):
         proba_soma = np.sum(soma_and_geno)
         self.assertAlmostEqual(proba_soma, 1)
 
-    # TODO: write test using seq_error
     def test_seq_error(self):
-        # compute probabilities of sequencing error
-        nt_string_size = 2
-        nt_counts = ut.enum_nt_counts(nt_string_size)
-        n_strings = int( math.pow(ut.NUCLEOTIDE_COUNT, nt_string_size) )
-        alpha_params = np.zeros(( n_strings, ut.NUCLEOTIDE_COUNT ))
-        prob_read_given_soma = np.zeros((n_strings))
-        for i in range(n_strings):
-            alpha_params[i] = [0.25] * ut.NUCLEOTIDE_COUNT
-            log_prob = pdf.dirichlet_multinomial(alpha_params[i], nt_counts[i])
-            prob_read_given_soma[i] = np.exp(log_prob)
-
-        # print(prob_read_given_soma) # matrix
-        proba = np.sum(prob_read_given_soma)
+        nt_counts = ut.enum_nt_counts(2)  # genotypes always 2-allele
+        proba = fm.seq_error(self.nt_freq, nt_counts)
         self.assertAlmostEqual(proba, 1)
 
     def test_trio_prob(self):
