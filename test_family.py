@@ -25,6 +25,7 @@ class TestTree(unittest.TestCase):
         self.nt_freq = ut.dc_alpha_parameters()
         # assume true if pass test_pop_sample
         self.parent_prob_mat = fm.pop_sample(self.muta_rate, self.nt_freq)
+        self.nt_counts = ut.enum_nt_counts(2)  # genotypes always 2-allele
         
     # at population sample, events should sum to 1
     def test_pop_sample(self):
@@ -59,13 +60,16 @@ class TestTree(unittest.TestCase):
         self.assertAlmostEqual(soma_proba, 1)
 
     def test_seq_error(self):
-        nt_counts = ut.enum_nt_counts(2)  # genotypes always 2-allele
-        proba_mat = fm.seq_error(self.nt_freq, nt_counts)
+        proba_mat = fm.seq_error(self.nt_freq, self.nt_counts)
         proba = ut.sum_exp(proba_mat)
         self.assertAlmostEqual(proba, 1)
 
     def test_trio_prob(self):
-        pass
+        proba = fm.trio_prob(self.nt_counts,
+                             self.muta_rate, self.nt_freq,
+                             self.muta_rate, self.muta_rate,
+                             self.nt_freq, None, None)
+        self.assertAlmostEqual(proba, 1)
 
 if __name__ == '__main__':
     unittest.main()

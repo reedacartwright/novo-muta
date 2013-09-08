@@ -6,8 +6,7 @@ import numpy as np
 import pdf
 import utilities as ut
 
-
-def trio_prob(read_child, read_mom, read_dad,
+def trio_prob(reads,
               pop_muta_rate, pop_nt_freq,
               germ_muta_rate, soma_muta_rate,
               dc_nt_freq, dc_disp, dc_bias):
@@ -40,25 +39,21 @@ def trio_prob(read_child, read_mom, read_dad,
                             Reads    Reads     Reads
 
     Args:
-        read_child: A 4-element nt count list [#A, #C, #G, #T].
-        read_mom: A 4-element nt count list [#A, #C, #G, #T].
-        read_dad: A 4-element nt count list [#A, #C, #G, #T].
-        pop_muta_rate: A scalar in [0, 1]
+        reads: A list of 3 4-element nt count lists for child, mom, and dad
+            [[#A, #C, #G, #T], [#A, #C, #G, #T], [#A, #C, #G, #T]].
+        pop_muta_rate: A scalar in [0, 1].
         pop_nt_freq: A 4-element nt frequency list [%A, %C, %G, %T].
         germ_muta_rate: A scalar in [0, 1].
         soma_muta_rate: A scalar in [0, 1].
         dc_nt_freq: A 4-element Dirichlet distribution parameter list.
-        dc_disp: A dispersion parameter.
-        dc_bias: A bias parameter.
+        dc_disp (unused): A dispersion parameter.
+        dc_bias (unused): A bias parameter.
 
     Returns:
-        A scalar probability of the read data given the parameters.
+        A scalar probability of a mutation given read data and parameters.
     """
-    # where are reads passed as arguments?
-    # dc_disp and dc_bias are unused
-
     # population sample mutation probability
-    parent_prob_mat = pop_sample(pop_muta_rate, pop_nt_freq)
+    parent_prob_mat = pop_sample(pop_muta_rate, pop_nt_freq)  # 16x16
     pop_proba = ut.sum_exp(parent_prob_mat)
 
     # germline mutation probability
@@ -78,41 +73,16 @@ def trio_prob(read_child, read_mom, read_dad,
     soma_and_geno_proba = np.sum(soma_and_geno)
 
     # sequencing error probability
-    proba_mat = seq_error(dc_nt_freq, [read_child, read_mom, read_dad])
+    proba_mat = seq_error(dc_nt_freq, reads)
     seq_proba = ut.sum_exp(proba_mat)
 
-    # how to implement P(muta|data) = P(muta*data)/P(data)?
-    return pop_proba + germ_proba + soma_and_geno_proba + seq_proba
+    reads_given_params_proba = (pop_proba + germ_proba + soma_and_geno_proba
+        + seq_proba)
 
-# Usage:
-# error_rate = 0.001
-# priors_mat = ut.dc_alpha_parameters() 
-# reads = [10] * 4
-# proba = seq_error(error_rate, priors_mat, reads)
-# def seq_error(priors_mat, reads):
-#     """
-#     Calculate the probability of sequencing error. Assume each chromosome is
-#     equally-likely to be sequenced.
+    reads_given_muta_params_proba = 4
+    # implement P(muta|data) = P(muta*data)/P(data)
 
-#     The probability is drawn from a Dirichlet multinomial distribution:
-#     This is a point of divergence from the Cartwright et al. paper mentioned
-#     in the other functions.
-
-#     Args:
-#         priors_mat: A 16 x 4 x 4 numpy array of the Dirichlet distribution
-#             priors for DCM corresponding to 16 genotype possibilities
-#             x 4 reference allele possibilities.
-#         reads: A list of nucleotide reads [#A, #C, #T, #G].
-#         error_rate (unused): The sequencing error rate as a float.
-
-#     Returns:
-#         A 16 x 4 probability matrix in log base e space.
-#     """
-#     proba_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.NUCLEOTIDE_COUNT ))
-#     for i in range(ut.GENOTYPE_COUNT):
-#         for j in range(ut.NUCLEOTIDE_COUNT):
-#             proba_mat[i, j] = pdf.dirichlet_multinomial(priors_mat, reads)
-#     return proba_mat
+    return reads_given_muta_params_proba/reads_given_params_proba
 
 def seq_error(priors_mat, reads):
     """
