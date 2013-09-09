@@ -73,18 +73,19 @@ def trio_prob(reads,
     soma_and_geno_proba = np.sum(soma_and_geno)
 
     # sequencing error probability
-    proba_mat = seq_error(dc_nt_freq, reads)
+    proba_mat = seq_error(0.005, dc_nt_freq, reads)
     seq_proba = ut.sum_exp(proba_mat)
 
+    # calculate P(muta|data) = P(muta*data)/P(data)
     reads_given_params_proba = (pop_proba + germ_proba + soma_and_geno_proba
         + seq_proba)
+    # TODO: implement formula for P(no muta,R|no muta)
+    # http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3728889/
+    no_muta_proba = 16.2222413646  
+    no_muta_given_reads_proba = no_muta_proba/reads_given_params_proba
+    return 1-no_muta_given_reads_proba
 
-    reads_given_muta_params_proba = 4
-    # implement P(muta|data) = P(muta*data)/P(data)
-
-    return reads_given_muta_params_proba/reads_given_params_proba
-
-def seq_error(priors_mat, reads):
+def seq_error(error_rate, priors_mat, reads):
     """
     Calculate the probability of sequencing error. Assume each chromosome is
     equally-likely to be sequenced.
@@ -104,7 +105,7 @@ def seq_error(priors_mat, reads):
     """
     prob_read_given_soma = np.zeros((ut.GENOTYPE_COUNT))
     for i, read in enumerate(reads):
-        prob_read_given_soma[i] = ut.dirichlet_multinomial(priors_mat, read)
+        prob_read_given_soma[i] = ut.dirichlet_multinomial(error_rate * priors_mat, read)
 
     return prob_read_given_soma
 
