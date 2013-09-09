@@ -13,7 +13,6 @@ import unittest
 
 import numpy as np
 
-from family import pdf
 from family import trio_model as fm
 from family import utilities as ut
 

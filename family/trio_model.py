@@ -3,7 +3,6 @@ import math
 
 import numpy as np
 
-import pdf
 import utilities as ut
 
 def trio_prob(reads,
@@ -98,7 +97,7 @@ def seq_error(error_rate, priors_mat, reads):
         priors_mat: A 1 x 4 numpy array of the Dirichlet distribution
             priors.
         reads: A 2d array of nucleotide reads
-            [[#A, #C, #T, #G], [#A, #C, #T, #G],].
+            [[#A, #C, #T, #G], [#A, #C, #T, #G], [#A, #C, #T, #G]].
 
     Returns:
         A probability matrix.
