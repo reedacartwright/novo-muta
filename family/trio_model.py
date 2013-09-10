@@ -8,6 +8,7 @@ import utilities as ut
 def trio_prob(reads,
               pop_muta_rate, pop_nt_freq,
               germ_muta_rate, soma_muta_rate,
+              seq_error_rate,
               dc_nt_freq, dc_disp, dc_bias):
     """
     Implement the trio model for a single site by calling the functions
@@ -44,6 +45,7 @@ def trio_prob(reads,
         pop_nt_freq: A 4-element nt frequency list [%A, %C, %G, %T].
         germ_muta_rate: A scalar in [0, 1].
         soma_muta_rate: A scalar in [0, 1].
+        seq_error_rate:
         dc_nt_freq: A 4-element Dirichlet distribution parameter list.
         dc_disp (unused): A dispersion parameter.
         dc_bias (unused): A bias parameter.
@@ -53,7 +55,8 @@ def trio_prob(reads,
     """
     # population sample mutation probability
     parent_prob_mat = pop_sample(pop_muta_rate, pop_nt_freq)  # 16x16
-    pop_proba = ut.sum_exp(parent_prob_mat)
+    parent_prob_mat = ut.rescale_to_normal(parent_prob_mat)
+    pop_proba = np.sum(parent_prob_mat)
 
     # germline mutation probability
     child_prob_mat = get_child_prob_mat(parent_prob_mat, germ_muta_rate)
@@ -65,26 +68,34 @@ def trio_prob(reads,
     # based on the previous layer
 
     # collapse parent_prob_mat into a single parent
-    geno = ut.sum_exp(parent_prob_mat, axis=0)
+    geno = np.sum(parent_prob_mat, axis=0)
     soma_proba = np.sum(geno)
 
     soma_and_geno = join_soma(geno, soma_given_geno)
     soma_and_geno_proba = np.sum(soma_and_geno)
 
     # sequencing error probability
-    proba_mat = seq_error(0.005, dc_nt_freq, reads)
-    seq_proba = ut.sum_exp(proba_mat)
+    proba_mat = seq_error(reads, dc_nt_freq, seq_error_rate)
+    proba_mat = ut.rescale_to_normal(proba_mat)
+    seq_proba = np.sum(proba_mat)
 
     # calculate P(muta|data) = P(muta*data)/P(data)
     reads_given_params_proba = (pop_proba + germ_proba + soma_and_geno_proba
         + seq_proba)
+
+    # print(pop_proba)
+    # print(germ_proba)
+    # print(soma_and_geno_proba)
+    # print(seq_proba)
+    # print(reads_given_params_proba)
+
     # TODO: implement formula for P(no muta,R|no muta)
     # http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3728889/
-    no_muta_proba = 16.2222413646  
+    no_muta_proba = 0
     no_muta_given_reads_proba = no_muta_proba/reads_given_params_proba
     return 1-no_muta_given_reads_proba
 
-def seq_error(error_rate, priors_mat, reads):
+def seq_error(reads, priors_mat, error_rate, disp=None, bias=None):
     """
     Calculate the probability of sequencing error. Assume each chromosome is
     equally-likely to be sequenced.
@@ -94,18 +105,23 @@ def seq_error(error_rate, priors_mat, reads):
     in the other functions.
 
     Args:
-        priors_mat: A 1 x 4 numpy array of the Dirichlet distribution
-            priors.
-        reads: A 2d array of nucleotide reads
-            [[#A, #C, #T, #G], [#A, #C, #T, #G], [#A, #C, #T, #G]].
+        priors_mat: A 16 x 4 numpy array of the Dirichlet distribution
+            priors for each genotype.
+        read: A array of nucleotide reads [#A, #C, #T, #G].
 
     Returns:
-        A probability matrix.
+        A 16 x 16 probability matrix.
     """
-    prob_read_given_soma = np.zeros((ut.GENOTYPE_COUNT))
-    for i, read in enumerate(reads):
-        prob_read_given_soma[i] = ut.dirichlet_multinomial(error_rate * priors_mat, read)
+    if disp is not None:  # TODO: add bias when alpha freq are added
+        alpha_mat = priors_mat * error_rate * disp
+    else:
+        alpha_mat = priors_mat * error_rate
 
+    prob_read_given_soma = np.zeros(( len(reads), ut.GENOTYPE_COUNT ))
+
+    for i, read in enumerate(reads):
+        for j, alpha in enumerate(alpha_mat):
+            prob_read_given_soma[i, j] = ut.dirichlet_multinomial(alpha, read)
     return prob_read_given_soma
 
 def soma_muta(soma, chrom, muta_rate):
@@ -231,8 +247,11 @@ def get_child_prob_mat(parent_prob_mat, muta_rate):
 
     Args:
         parent_prob_mat: The 16 x 16 probability matrix of the parents in
-        log e space (see pop_sample).
+        normal space (see pop_sample).
         muta_rate: The mutation rate.
+
+    Returns:
+        A probability matrix.
     """
     child_prob_mat = np.zeros((
         ut.GENOTYPE_COUNT,
@@ -249,8 +268,8 @@ def get_child_prob_mat(parent_prob_mat, muta_rate):
                     father_gt,
                     muta_rate
                 )
-                parent = parent_prob_mat[mom_idx, dad_idx]  # log
-                event = child_given_parent * np.exp(parent)
+                parent = parent_prob_mat[mom_idx, dad_idx]
+                event = child_given_parent * parent
                 child_prob_mat[mom_idx, dad_idx, child_idx] = event
 
     return child_prob_mat
@@ -313,6 +332,7 @@ def pop_sample(muta_rate, nt_freq):
         .
     """
     # combine parameters for call to dirichlet multinomial
+    # does this require disp and bias?
     muta_nt_freq = np.array([i * muta_rate for i in nt_freq])
     gt_count = ut.two_parent_counts()
     proba_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))

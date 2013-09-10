@@ -54,12 +54,24 @@ def dirichlet_multinomial(alpha, n):
         product_term += sp.gammaln(alpha[i] + count) - sp.gammaln(alpha[i])
     return constant_term + product_term
 
+def dc_priors_mat():
+    alpha_mat = np.empty((
+        GENOTYPE_COUNT,
+        NUCLEOTIDE_COUNT
+    ))
+    alpha_mat[:] = 0.25
+    return alpha_mat
+
 def dc_alpha_parameters():
     """
     Generate Dirichlet multinomial alpha parameters
     alpha = (alpha_1, ..., alpha_K) for a K-category Dirichlet distribution
     (where K = 4 = NUCLEOTIDE_COUNT) that vary with each combination of parental
     genotype and reference nt.
+
+    Note: This function is temporary until Rachel finishes research and releases
+    the actual numbers of alpha frequencies. It will need to be replaced by
+    alpha frequencies that vary with each genotype.
 
     Returns:
         A 1 x 4 numpy array.
@@ -149,3 +161,16 @@ def sum_exp(arr, axis=None):
         calculated over an axis.
     """
     return np.sum( np.exp(arr), axis=axis )
+
+def rescale_to_normal(arr):
+    """
+    Rescale a numpy matrix in log space to normal space.
+
+    Args:
+        arr: A numpy array.
+
+    Returns:
+        A numpy array rescaled to normal space (the highest element is 1).
+    """
+    max_elem = np.amax(arr)
+    return np.exp(arr-max_elem)

@@ -16,3 +16,4 @@
 
 # Ignore other unneeded files.
 *.pyc
+/build
