@@ -19,11 +19,44 @@ GENOTYPES = ['%s%s' % pair
 GENOTYPE_COUNT = len(GENOTYPES)  # 16
 GENOTYPE_INDEX = {gt: i for i, gt in enumerate(GENOTYPES)}
 
+# TODO: reduce genotypes from 16 to 10 by removing equivilants if efficiency
+#    becomes an issue
 GENOTYPE_LEFT_EQUIV = {
     'AC':'CA', 'AG':'GA', 'AT':'TA',
     'CG':'GC', 'CT':'TC', 'GT':'TG'
 }
 GENOTYPE_RIGHT_EQUIV = {v: k for k, v in GENOTYPE_LEFT_EQUIV.items()}
+
+# Dirichlet multinomial alpha parameters
+# alpha = (alpha_1, ..., alpha_K) for a K-category Dirichlet distribution
+# (where K = 4 = NUCLEOTIDE_COUNT) that vary with each combination of parental
+# genotype and reference nt.
+# order of alphas must be same as GENOTYPES
+# currently for use as a test alpha
+# replace with actual alpha frequencies when Rachel completes research
+# 16 x 4 numpy array
+ALPHAS = np.array([
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25]
+])
+
+# TODO: must be implemented to complete seq_error
+TRANSITION_MAT = [[1, 0],
+                  [0, 1]]
 
 
 def dirichlet_multinomial(alpha, n):
@@ -53,30 +86,6 @@ def dirichlet_multinomial(alpha, n):
     for i, count in enumerate(n):
         product_term += sp.gammaln(alpha[i] + count) - sp.gammaln(alpha[i])
     return constant_term + product_term
-
-def dc_priors_mat():
-    alpha_mat = np.empty((
-        GENOTYPE_COUNT,
-        NUCLEOTIDE_COUNT
-    ))
-    alpha_mat[:] = 0.25
-    return alpha_mat
-
-def dc_alpha_parameters():
-    """
-    Generate Dirichlet multinomial alpha parameters
-    alpha = (alpha_1, ..., alpha_K) for a K-category Dirichlet distribution
-    (where K = 4 = NUCLEOTIDE_COUNT) that vary with each combination of parental
-    genotype and reference nt.
-
-    Note: This function is temporary until Rachel finishes research and releases
-    the actual numbers of alpha frequencies. It will need to be replaced by
-    alpha frequencies that vary with each genotype.
-
-    Returns:
-        A 1 x 4 numpy array.
-    """
-    return np.array([0.25] * NUCLEOTIDE_COUNT)
 
 def two_parent_counts():
     """
