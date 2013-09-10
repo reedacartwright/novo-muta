@@ -26,14 +26,13 @@ GENOTYPE_LEFT_EQUIV = {
 }
 GENOTYPE_RIGHT_EQUIV = {v: k for k, v in GENOTYPE_LEFT_EQUIV.items()}
 
-# Dirichlet multinomial alpha parameters
+# A 16 x 4 numpy array of Dirichlet multinomial alpha parameters
 # alpha = (alpha_1, ..., alpha_K) for a K-category Dirichlet distribution
 # (where K = 4 = NUCLEOTIDE_COUNT) that vary with each combination of parental
 # genotype and reference nt.
 # order of alphas must be same as GENOTYPES
 # currently for use as a test alpha
-# replace with actual alpha frequencies when Rachel completes research
-# 16 x 4 numpy array
+# TODO: replace with actual alpha frequencies when Rachel completes research
 ALPHAS = np.array([
     [0.25, 0.25, 0.25, 0.25],
     [0.25, 0.25, 0.25, 0.25],
@@ -54,8 +53,8 @@ ALPHAS = np.array([
 ])
 
 # TODO: must be implemented to complete seq_error
-TRANSITION_MAT = [[1, 0],
-                  [0, 1]]
+# currently a test sample value
+TRANS_MAT = np.array([0.0625] * 16)
 
 
 def dirichlet_multinomial(alpha, n):

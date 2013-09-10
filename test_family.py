@@ -56,12 +56,15 @@ class TestTree(unittest.TestCase):
         pass
 
     def test_seq_error(self):
-        proba_mat = np.array([
+        seq_prob_vecs = np.array([
             fm.seq_error(nt_count)
             for nt_count in self.nt_counts
         ])
-        proba = np.sum(proba_mat)
-        # 256
+        seq_prob_mat = []
+        for vec in seq_prob_vecs:
+            seq_prob_mat.append(vec * ut.TRANS_MAT)
+        proba = np.sum(seq_prob_mat)
+        # 16
         print(proba)
         pass
 
