@@ -95,10 +95,11 @@ def seq_error(read, error_rate, disp=None, bias=None):
         read: A array of nucleotide reads [#A, #C, #T, #G].
 
     Returns:
-        A 1 x 16 probability vector that needs to be multiplied by a
-        transition matrix.
+        A 16 x 16 probability vector that needs to be multiplied by a
+        transition matrix. First dimension is genotype. Second dimension is
+        the different probabilities depending on each of the 16 alphas.
     """
-    alpha_mat = ut.ALPHAS * error_rate
+    alpha_mat = np.array(ut.ALPHAS * error_rate)
     if disp is not None:  # TODO: add bias when alpha freq are added
         alpha_mat *= disp
 
