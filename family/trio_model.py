@@ -1,14 +1,19 @@
-#!/usr/bin/env python
 import math
 
 import numpy as np
 
 import utilities as ut
 
-def trio_prob(reads,
-              pop_muta_rate, pop_nt_freq,
-              germ_muta_rate, soma_muta_rate,
-              seq_error_rate, dm_disp, dm_bias):
+# constant parameters consistent throughout model must be between [0, 1]
+POP_MUTA_RATE = 0.001  # theta
+GERM_MUTA_RATE = 0.00000002
+SOMA_MUTA_RATE = 0.00000002
+SEQ_ERROR_RATE = 0.005
+DM_DISP = None
+DM_BIAS = None
+
+
+def trio(reads, pop_nt_freq):
     """
     Implement the trio model for a single site by calling the functions
     on the left of the following diagram. The function names label
@@ -38,27 +43,21 @@ def trio_prob(reads,
                             Reads    Reads     Reads
 
     Args:
-        reads: A list of 3 4-element nt count lists for child, mom, and dad
+        reads: A 3 x 4 matrix nt count lists for child, mom, and dad
             [[#A, #C, #G, #T], [#A, #C, #G, #T], [#A, #C, #G, #T]].
-        pop_muta_rate: A scalar in [0, 1].
         pop_nt_freq: A 4-element nt frequency list [%A, %C, %G, %T].
-        germ_muta_rate: A scalar in [0, 1].
-        soma_muta_rate: A scalar in [0, 1].
-        seq_error_rate:
-        dm_disp (unused): A dispersion parameter.
-        dm_bias (unused): A bias parameter.
 
     Returns:
         A scalar probability of a mutation given read data and parameters.
     """
     # population sample mutation probability
-    parent_prob_mat = pop_sample(pop_muta_rate, pop_nt_freq)
+    parent_prob_mat = pop_sample(pop_nt_freq)
 
     # germline mutation probability
-    child_prob_mat = get_child_prob_mat(parent_prob_mat, germ_muta_rate)
+    child_prob_mat = get_child_prob_mat(parent_prob_mat)
 
     # somatic mutation probability
-    soma_given_geno = get_soma_given_geno(soma_muta_rate)
+    soma_given_geno = get_soma_given_geno()
     # assign a pdf to the true genotype event space
     # based on the previous layer
     # collapse parent_prob_mat into a single parent
@@ -66,9 +65,7 @@ def trio_prob(reads,
     soma_and_geno_prob_mat = join_soma(geno, soma_given_geno)
 
     # sequencing error probability
-    seq_prob_mat = np.array([
-        seq_error(read, seq_error_rate, dm_disp, dm_bias)
-        for read in reads])
+    seq_prob_mat = np.array([ seq_error(read) for read in reads ])
     # TODO: multiply vectors by transition matrix
 
     # calculate P(muta|data) = P(muta*data)/P(data)
@@ -82,7 +79,7 @@ def trio_prob(reads,
     no_muta_given_reads_proba = no_muta_proba/reads_given_params_proba
     return 1-no_muta_given_reads_proba
 
-def seq_error(read, error_rate, disp=None, bias=None):
+def seq_error(read):
     """
     Calculate the probability of sequencing error. Assume each chromosome is
     equally-likely to be sequenced.
@@ -99,16 +96,16 @@ def seq_error(read, error_rate, disp=None, bias=None):
         transition matrix. First dimension is genotype. Second dimension is
         the different probabilities depending on each of the 16 alphas.
     """
-    alpha_mat = np.array(ut.ALPHAS * error_rate)
-    if disp is not None:  # TODO: add bias when alpha freq are added
-        alpha_mat *= disp
+    alpha_mat = np.array(ut.ALPHAS * SEQ_ERROR_RATE)
+    if DM_DISP is not None:  # TODO: add bias when alpha freq are added
+        alpha_mat *= DM_DISP
 
     prob_read_given_soma = np.zeros((ut.GENOTYPE_COUNT))
     for i, alpha in enumerate(alpha_mat):
         prob_read_given_soma[i] = ut.dirichlet_multinomial(alpha, read)
     return ut.rescale_to_normal(prob_read_given_soma)
 
-def soma_muta(soma, chrom, muta_rate):
+def soma_muta(soma, chrom):
     """
     Calculate the probability of somatic mutation.
 
@@ -118,12 +115,11 @@ def soma_muta(soma, chrom, muta_rate):
     Args:
         soma1: A nucleotide character.
         chrom1: Another nucleotide chracter to be compared.
-        muta_rate: The mutation rate.
 
     Returns:
         The probability of somatic mutation.
     """
-    exp_term = np.exp(-4.0/3.0 * muta_rate)
+    exp_term = np.exp(-4.0/3.0 * SOMA_MUTA_RATE)
     term1 = 0.25 - 0.25 * exp_term
     # term2 is indicator term
 
@@ -132,13 +128,10 @@ def soma_muta(soma, chrom, muta_rate):
 
     return term1 + ind_term_chrom1
 
-def get_soma_vec(muta_rate):
+def get_soma_vec():
     """
     Compute event space for somatic nucleotide given a genotype nucleotide
     for a single chromosome.
-
-    Args:
-        muta_rate: The mutation rate.
 
     Returns:
         A 4 x 4 probability vector.
@@ -146,22 +139,19 @@ def get_soma_vec(muta_rate):
     prob_vec = np.zeros(( ut.NUCLEOTIDE_COUNT, ut.NUCLEOTIDE_COUNT ))
     for soma_nt, i in ut.NUCLEOTIDE_INDEX.items():
         for geno_nt, j in ut.NUCLEOTIDE_INDEX.items():
-            prob_vec[i, j] = soma_muta(soma_nt, geno_nt, muta_rate)
+            prob_vec[i, j] = soma_muta(soma_nt, geno_nt)
     return prob_vec
 
-def get_soma_given_geno(muta_rate):
+def get_soma_given_geno():
     """
     Combine event spaces for two chromosomes (independent of each other).
-
-    Args:
-        muta_rate: The mutation rate.
 
     Returns:
         A 16 x 16 matrix where the first dimension is the lexicographically
         ordered pairs of letters from nt alphabet for somatic genotypes and
         second dimension is that for true genotypes.
     """
-    prob_vec = get_soma_vec(muta_rate)
+    prob_vec = get_soma_vec()
     soma_given_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
     for chrom1, i in ut.NUCLEOTIDE_INDEX.items():
         given_chrom1_vec = prob_vec[:, i]
@@ -191,7 +181,7 @@ def join_soma(geno, soma_given_geno):
         soma_and_geno[:, i] = geno[i] * soma_given_geno[:, i]
     return soma_and_geno
 
-def germ_muta(child_chrom, mom_chrom, dad_chrom, muta_rate):
+def germ_muta(child_chrom, mom_chrom, dad_chrom):
     """
     Calculate the probability of germline mutation and parent chromosome 
     donation in the same step. Assume the first chromosome is associated with
@@ -201,12 +191,11 @@ def germ_muta(child_chrom, mom_chrom, dad_chrom, muta_rate):
         child_chrom: The 2-allele genotype string of the child.
         mom_chrom: The 2-allele genotype string of the mother.
         dad_chrom: The 2-allele genotype string of the father.
-        muta_rate: The mutation rate.
 
     Returns:
         The probability of germline mutation.
     """
-    exp_term = math.exp(-4.0/3.0 * muta_rate)
+    exp_term = math.exp(-4.0/3.0 * GERM_MUTA_RATE)
     homo_match = 0.25 + 0.75 * exp_term
     hetero_match = 0.25 + 0.25 * exp_term
     no_match = 0.25 - 0.25 * exp_term
@@ -224,7 +213,7 @@ def germ_muta(child_chrom, mom_chrom, dad_chrom, muta_rate):
     term2 = get_term_match(dad_chrom, child_chrom[1])
     return term1 * term2
 
-def get_child_prob_mat(parent_prob_mat, muta_rate):
+def get_child_prob_mat(parent_prob_mat):
     """
     Calculate the probability matrix for the offspring given the probability
     matrix of the parents and mutation rate.
@@ -232,7 +221,6 @@ def get_child_prob_mat(parent_prob_mat, muta_rate):
     Args:
         parent_prob_mat: The 16 x 16 probability matrix of the parents in
         normal space (see pop_sample).
-        muta_rate: The mutation rate.
 
     Returns:
         A probability matrix.
@@ -249,8 +237,7 @@ def get_child_prob_mat(parent_prob_mat, muta_rate):
                 child_given_parent = germ_muta(
                     child_gt,
                     mother_gt,
-                    father_gt,
-                    muta_rate
+                    father_gt
                 )
                 parent = parent_prob_mat[mom_idx, dad_idx]
                 event = child_given_parent * parent
@@ -258,7 +245,7 @@ def get_child_prob_mat(parent_prob_mat, muta_rate):
 
     return child_prob_mat
 
-def pop_sample(muta_rate, nt_freq):
+def pop_sample(nt_freq):
     """
     The multinomial component of the model generates the nucleotide frequency
     parameter vector (alpha_A, alpha_C, alpha_G, alpha_T) based on the
@@ -281,7 +268,6 @@ def pop_sample(muta_rate, nt_freq):
     in other functions.
 
     Args:
-        muta_rate: A mutation rate parameter theta.
         nt_freq: A set of nucleotide appearance frequencies in the gene pool
             (alpha_A, alpha_C, alpha_G, alpha_T).
 
@@ -317,13 +303,13 @@ def pop_sample(muta_rate, nt_freq):
     """
     # combine parameters for call to dirichlet multinomial
     # does this require disp and bias? see seq_error
-    muta_nt_freq = np.array([i * muta_rate for i in nt_freq])
+    muta_nt_freq = np.array([i * POP_MUTA_RATE for i in nt_freq])
     gt_count = ut.two_parent_counts()
-    proba_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
+    prob_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
     for i in range(ut.GENOTYPE_COUNT):
         for j in range(ut.GENOTYPE_COUNT):
             nt_count = gt_count[i, j, :]  # count per 2-allele genotype
             log_proba = ut.dirichlet_multinomial(muta_nt_freq, nt_count)
-            proba_mat[i, j] = log_proba
+            prob_mat[i, j] = log_proba
 
-    return ut.rescale_to_normal(proba_mat)
+    return ut.rescale_to_normal(prob_mat)
