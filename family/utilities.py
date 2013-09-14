@@ -12,6 +12,9 @@ NUCLEOTIDE_INDEX = {nt: i for i, nt in enumerate(NUCLEOTIDES)}
 # is the order of genotypes relevant?
 # use of genotype and index is consistent
 # lexicographical ordered set of 2 nucleotide strings
+# GENOTYPES = ['AA', 'AC', 'AG', 'AT', 'CC',
+#              'CG', 'CT', 'GG', 'GT', 'TT']
+
 GENOTYPES = ['%s%s' % pair
     for pair in itertools.product(NUCLEOTIDES, repeat=2)
 ]
@@ -51,10 +54,6 @@ ALPHAS = np.array([
     [0.25, 0.25, 0.25, 0.25],
     [0.25, 0.25, 0.25, 0.25]
 ])
-
-# TODO: must be implemented to complete seq_error
-# currently a test sample value
-TRANS_MAT = np.array([0.0625] * 16)
 
 
 def dirichlet_multinomial(alpha, n):
