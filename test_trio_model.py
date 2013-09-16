@@ -19,69 +19,48 @@ from family import utilities as ut
 class TestTrioModel(unittest.TestCase):
 
     def setUp(self):
-        self.trio_model = TrioModel(reads=ut.enum_nt_counts(2),  # genotypes always 2-allele
-                                    pop_muta_rate=0.001,
-                                    germ_muta_rate=0.00000002,
-                                    soma_muta_rate=0.00000002,
-                                    seq_err_rate=0.005,
-                                    dm_disp=None,
-                                    dm_bias=None)
-        # assume true if pass test_pop_sample
-        self.parent_prob_mat = self.trio_model.pop_sample(ut.ALPHAS[0])
-
-    # at population sample, events should sum to ?
-    def test_pop_sample(self):
-        parent_prob_mat = self.trio_model.pop_sample(ut.ALPHAS[0])
-        proba = np.sum(parent_prob_mat)
-        # 4.00550122
-        print(proba)
-        pass
-
-    # at germline mutation, events should sum to ?
-    # must condition on parent genotype layer
-    def test_germ_muta(self):
-        child_prob_mat = self.trio_model.get_child_prob_mat(
-            self.parent_prob_mat
+        # reads must be 3x4
+        self.trio_model = TrioModel(
+            reads=ut.enum_nt_counts(2),  # genotypes 2-allele
+            pop_muta_rate=0.001,
+            germ_muta_rate=0.00000002,
+            soma_muta_rate=0.00000002,
+            seq_err_rate=0.005,
+            dm_disp=None,
+            dm_bias=None
         )
+
+    def test_pop_sample(self):
+        parent_prob_mat = self.trio_model.pop_sample()
+        proba = np.sum(parent_prob_mat)
+        self.assertAlmostEqual(proba, 1)
+
+    def test_germ_muta(self):
+        child_prob_mat = self.trio_model.get_child_prob_mat()
         proba = np.sum(child_prob_mat)
-        # 4.00550122
-        print(proba)
-        pass
+        self.assertAlmostEqual(proba, 1)
 
-    # at somatic mutation, events should sum to ?
-    # must condition on parent genotype layer
     def test_soma_muta(self):
-        soma_given_geno = self.trio_model.get_soma_given_geno()
-        geno = np.sum(self.parent_prob_mat, axis=0)
-        proba = np.sum(geno)
-        print(proba)
-        # 4.014981
-
-        soma_and_geno = TrioModel.join_soma(geno, soma_given_geno)
+        soma_and_geno = self.trio_model.soma_and_geno()
         soma_proba = np.sum(soma_and_geno)
-        # 4.014981
-        print(soma_proba)
-        pass
+        self.assertAlmostEqual(soma_proba, 1)
 
-    def test_seq_error(self):
-        child_seq_prob = self.trio_model.seq_err(0)
-        child_prob = np.sum(child_seq_prob)
-        mom_seq_prob = self.trio_model.seq_err(1)
-        mom_prob = np.sum(child_seq_prob)
-        dad_seq_prob = self.trio_model.seq_err(2)
-        dad_prob = np.sum(dad_seq_prob)
+    def test_seq_err(self):
+        read_count = len(self.trio_model.reads)
+        seq_prob_mat = np.zeros(( read_count, ut.GENOTYPE_COUNT ))
+        for i in range(read_count):
+            seq_prob_mat[i] = self.trio_model.seq_err(i)
 
-        # 4.00550122
-        print(child_prob)
-        print(mom_prob)
-        print(dad_prob)
-        pass
+        seq_prob_mat_scaled = ut.scale_to_log(
+            seq_prob_mat,
+            self.trio_model.max_elems
+        )
+        proba = np.sum(seq_prob_mat_scaled)
+        self.assertAlmostEqual(proba, 16)  # 16 alpha freq
 
     def test_trio(self):
         proba = self.trio_model.trio()
-        # 1
-        print(proba)
-        pass
+        self.assertAlmostEqual(proba, 1)
 
 if __name__ == '__main__':
     unittest.main()

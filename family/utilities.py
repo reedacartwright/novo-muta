@@ -170,7 +170,7 @@ def sum_exp(arr, axis=None):
 
 def rescale_to_normal(arr):
     """
-    Rescale a numpy matrix in log space to normal space.
+    Rescale a numpy array in log space to normal space.
 
     Args:
         arr: A numpy array.
@@ -179,4 +179,20 @@ def rescale_to_normal(arr):
         A numpy array rescaled to normal space (the highest element is 1).
     """
     max_elem = np.amax(arr)
-    return np.exp(arr-max_elem)
+    return np.exp(arr-max_elem), max_elem
+
+def scale_to_log(arr, max_elem):
+    """
+    Scale a numpy array in normal space to log space.
+
+    Currently used for testing purposes only.
+
+    Args:
+        arr: A numpy array.
+        max_elem: The greatest element in the array (stored when
+            rescale_to_normal is called).
+
+    Returns:
+        A numpy array scaled to log space.
+    """
+    return arr * np.exp(max_elem)

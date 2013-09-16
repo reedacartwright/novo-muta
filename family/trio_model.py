@@ -13,12 +13,18 @@ class TrioModel(object):
     Attributes:
         reads: A 3 x 4 matrix nt count lists for child, mom, and dad
             [[#A, #C, #G, #T], [#A, #C, #G, #T], [#A, #C, #G, #T]].
-        pop_muta_rate: A number representing the population mutation rate.
+        pop_muta_rate: A number representing the population mutation rate
+            (theta).
         germ_muta_rate: A number representing the germline mutation rate.
         soma_muta_rate: A number representing the somatic mutation rate.
         seq_err_rate: A number representing the sequencing error rate.
         dm_disp: A value representing the Dirichlet multinomial dispersion.
         dm_bias: A value representing the Dirichlet multinomial bias.
+        max_elems: A 1 x 3 array containing the greatest elements in the
+            vectors calculated by seq_err in order to scale back to log space.
+        parent_prob_mat: The 16 x 16 probability matrix of the parents in
+            log space (see pop_sample).
+
     """
 
     def __init__(self, reads=None,
@@ -29,12 +35,14 @@ class TrioModel(object):
         Dirichlet multinomial parameters if none are given.
         """
         self.reads = reads
-        self.pop_muta_rate = pop_muta_rate  # theta
+        self.pop_muta_rate = pop_muta_rate
         self.germ_muta_rate = germ_muta_rate
         self.soma_muta_rate = soma_muta_rate
         self.seq_err_rate = seq_err_rate
         self.dm_disp = dm_disp
         self.dm_bias = dm_bias
+        self.max_elems = []
+        self.parent_prob_mat = self.pop_sample()
 
     def trio(self):
         """
@@ -68,38 +76,30 @@ class TrioModel(object):
         Returns:
             A scalar probability of a mutation given read data and parameters.
         """
-        # population sample mutation probability
-        parent_prob_mat = self.pop_sample(ut.ALPHAS[0])  # pop_nt_freq
-
         # germline mutation probability, trans matrix
-        child_prob_mat = self.get_child_prob_mat(parent_prob_mat)
+        child_prob_mat = self.get_child_prob_mat()
 
         # somatic mutation probability, trans matrix
-        soma_given_geno = self.get_soma_given_geno()
-        # assign a pdf to the true genotype event space
-        # based on the previous layer
-        # collapse parent_prob_mat into a single parent
-        geno = np.sum(parent_prob_mat, axis=0)
-        soma_and_geno_prob_mat = TrioModel.join_soma(geno, soma_given_geno)
+        soma_and_geno_prob_mat = self.soma_and_geno()
 
         # sequencing error probability
-        child_seq_prob = self.seq_err(0) # 16
-        mom_seq_prob = self.seq_err(1)
-        dad_seq_prob = self.seq_err(2)
+        seq_prob_mat = self.seq_err_all()
 
         # multiply vectors by transition matrix
-        child_prob = child_seq_prob * soma_and_geno_prob_mat  # 16x16
-        mom_prob = mom_seq_prob * soma_and_geno_prob_mat
-        dad_prob = dad_seq_prob * soma_and_geno_prob_mat
+        child_prob = seq_prob_mat[0] * soma_and_geno_prob_mat  # 16x16
+        mom_prob = seq_prob_mat[1] * soma_and_geno_prob_mat
+        dad_prob = seq_prob_mat[2] * soma_and_geno_prob_mat
 
+        # calculate denominator
         child_prob_given_parent = child_prob * child_prob_mat  # 16x16x16
-        dad_prob_mat = child_prob_given_parent * parent_prob_mat  #16x16x16
+        dad_prob_mat = child_prob_given_parent * self.parent_prob_mat  #16x16x16
         child_prob_given_dad = dad_prob_mat * dad_prob
         prob_mat = child_prob_given_dad * mom_prob  # 16x16x16
         reads_given_params_proba = np.sum(prob_mat)
 
-        # TODO: implement formula for P(no muta,R|no muta)
+        # TODO: calculate numerator
         no_muta_proba = 0
+
         no_muta_given_reads_proba = no_muta_proba/reads_given_params_proba
         return 1-no_muta_given_reads_proba
 
@@ -124,10 +124,28 @@ class TrioModel(object):
 
         prob_read_given_soma = np.zeros((ut.GENOTYPE_COUNT))
         for i, alpha in enumerate(alpha_mat):
-            prob_read_given_soma[i] = ut.dirichlet_multinomial(alpha,
-                                                               self.reads[i])
+            log_proba = ut.dirichlet_multinomial(alpha, self.reads[i])
+            prob_read_given_soma[i] = log_proba
 
-        return ut.rescale_to_normal(prob_read_given_soma)
+        prob_read_given_soma_rescaled, max_elem = ut.rescale_to_normal(
+            prob_read_given_soma
+        )
+        self.max_elems.append(max_elem)
+
+        return prob_read_given_soma_rescaled
+
+    def seq_err_all(self):
+        """
+        Calculate the probability of sequencing error for all reads.
+
+        Returns:
+            A 3 x 16 probability matrix given that reads is a 3 x 4 array.
+        """
+        read_count = len(self.reads)
+        seq_prob_mat = np.zeros(( read_count, ut.GENOTYPE_COUNT ))
+        for i in range(read_count):
+            seq_prob_mat[i] = self.seq_err(i)
+        return seq_prob_mat
 
     def soma_muta(self, soma, chrom):
         """
@@ -152,7 +170,7 @@ class TrioModel(object):
         # check if indicator function is true for each chromosome
         ind_term_chrom1 = exp_term if soma == chrom else 0
 
-        return term1 * ind_term_chrom1
+        return term1 + ind_term_chrom1
 
     def get_soma_vec(self):
         """
@@ -209,6 +227,17 @@ class TrioModel(object):
             soma_and_geno[:, i] = geno[i] * soma_given_geno[:, i]
         return soma_and_geno
 
+    def soma_and_geno(self):
+        """
+        Calculate somatic mutation probability matrix for a single parent.
+
+        Returns:
+            A 16 x 16 probability matrix.
+        """
+        soma_given_geno = self.get_soma_given_geno()
+        geno = np.sum(self.parent_prob_mat, axis=0)
+        return TrioModel.join_soma(geno, soma_given_geno)
+
     def germ_muta(self, child_chrom, mom_chrom, dad_chrom):
         """
         Calculate the probability of germline mutation and parent chromosome 
@@ -242,14 +271,10 @@ class TrioModel(object):
         term2 = get_term_match(dad_chrom, child_chrom[1])
         return term1 * term2
 
-    def get_child_prob_mat(self, parent_prob_mat):
+    def get_child_prob_mat(self):
         """
         Calculate the probability matrix for the offspring given the
         probability matrix of the parents and mutation rate.
-
-        Args:
-            parent_prob_mat: The 16 x 16 probability matrix of the parents in
-            log space (see pop_sample).
 
         Returns:
             A 16 x 16 x 16 probability matrix.
@@ -268,13 +293,13 @@ class TrioModel(object):
                         mother_gt,
                         father_gt
                     )
-                    parent = parent_prob_mat[mom_idx, dad_idx]
+                    parent = self.parent_prob_mat[mom_idx, dad_idx]
                     event = child_given_parent * parent
                     child_prob_mat[mom_idx, dad_idx, child_idx] = event
 
         return child_prob_mat
 
-    def pop_sample(self, nt_freq):
+    def pop_sample(self):
         """
         The multinomial component of the model generates the nucleotide
         frequency parameter vector (alpha_A, alpha_C, alpha_G, alpha_T) based
@@ -295,10 +320,6 @@ class TrioModel(object):
 
         Note: This model does not follow that of the Cartwright paper
         mentioned in other functions.
-
-        Args:
-            nt_freq: A set of nucleotide appearance frequencies in the gene
-            pool (alpha_A, alpha_C, alpha_G, alpha_T).
 
         Returns:
             A 16 x 16 probability matrix in log e space where the (i, j)
