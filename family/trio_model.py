@@ -249,7 +249,7 @@ class TrioModel(object):
 
         Args:
             parent_prob_mat: The 16 x 16 probability matrix of the parents in
-            normal space (see pop_sample).
+            log space (see pop_sample).
 
         Returns:
             A 16 x 16 x 16 probability matrix.
@@ -332,14 +332,13 @@ class TrioModel(object):
             .
         """
         # combine parameters for call to dirichlet multinomial
-        # does this require disp and bias? see seq_error
-        muta_nt_freq = np.array([i * self.pop_muta_rate for i in nt_freq])
+        muta_nt_freq = np.array([0.25 * self.pop_muta_rate for i in range(4)])
         gt_count = ut.two_parent_counts()
         prob_mat = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
         for i in range(ut.GENOTYPE_COUNT):
             for j in range(ut.GENOTYPE_COUNT):
                 nt_count = gt_count[i, j, :]  # count per 2-allele genotype
                 log_proba = ut.dirichlet_multinomial(muta_nt_freq, nt_count)
-                prob_mat[i, j] = log_proba
+                prob_mat[i, j] = np.exp(log_proba)
 
-        return ut.rescale_to_normal(prob_mat)
+        return prob_mat
