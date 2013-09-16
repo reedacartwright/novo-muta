@@ -150,7 +150,7 @@ def enum_nt_counts(size):
         second_shape = second.shape
         for j in range(second_shape[0]):
             for i in range(first_shape[0]):
-                nt_counts[i+j*NUCLEOTIDE_COUNT, :] = (first[i, :] + second[j, :])
+                nt_counts[i+j*NUCLEOTIDE_COUNT, :] = first[i, :] + second[j, :]
         return nt_counts
 
 def sum_exp(arr, axis=None):

@@ -71,16 +71,16 @@ class TrioModel(object):
         # population sample mutation probability
         parent_prob_mat = self.pop_sample(ut.ALPHAS[0])  # pop_nt_freq
 
-        # germline mutation probability
-        child_prob_mat = self.get_child_prob_mat(parent_prob_mat)  # trans matrix
+        # germline mutation probability, trans matrix
+        child_prob_mat = self.get_child_prob_mat(parent_prob_mat)
 
-        # somatic mutation probability
+        # somatic mutation probability, trans matrix
         soma_given_geno = self.get_soma_given_geno()
         # assign a pdf to the true genotype event space
         # based on the previous layer
         # collapse parent_prob_mat into a single parent
         geno = np.sum(parent_prob_mat, axis=0)
-        soma_and_geno_prob_mat = TrioModel.join_soma(geno, soma_given_geno)  # trans matrix
+        soma_and_geno_prob_mat = TrioModel.join_soma(geno, soma_given_geno)
 
         # sequencing error probability
         child_seq_prob = self.seq_err(0) # 16
@@ -117,8 +117,9 @@ class TrioModel(object):
             transition matrix. First dimension is genotype. Second dimension
             is the different probabilities depending on each of the 16 alphas.
         """
+        # TODO: add bias when alpha freq are added
         alpha_mat = np.array(ut.ALPHAS * self.seq_err_rate)
-        if self.dm_disp is not None:  # TODO: add bias when alpha freq are added
+        if self.dm_disp is not None:
             alpha_mat *= self.dm_disp
 
         prob_read_given_soma = np.zeros((ut.GENOTYPE_COUNT))
@@ -151,7 +152,7 @@ class TrioModel(object):
         # check if indicator function is true for each chromosome
         ind_term_chrom1 = exp_term if soma == chrom else 0
 
-        return term1 + ind_term_chrom1
+        return term1 * ind_term_chrom1
 
     def get_soma_vec(self):
         """
@@ -228,7 +229,6 @@ class TrioModel(object):
         hetero_match = 0.25 + 0.25 * exp_term
         no_match = 0.25 - 0.25 * exp_term
 
-        # @staticmethod
         def get_term_match(parent_chrom, child_chrom_base):
             if child_chrom_base in parent_chrom:
                 if parent_chrom[0] == parent_chrom[1]:
@@ -252,7 +252,7 @@ class TrioModel(object):
             normal space (see pop_sample).
 
         Returns:
-            A probability matrix.
+            A 16 x 16 x 16 probability matrix.
         """
         child_prob_mat = np.zeros((
             ut.GENOTYPE_COUNT,

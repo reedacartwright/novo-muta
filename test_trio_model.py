@@ -25,8 +25,7 @@ class TestTrioModel(unittest.TestCase):
                                     soma_muta_rate=0.00000002,
                                     seq_err_rate=0.005,
                                     dm_disp=None,
-                                    dm_bias=None
-        )
+                                    dm_bias=None)
         # assume true if pass test_pop_sample
         self.parent_prob_mat = self.trio_model.pop_sample(ut.ALPHAS[0])
 
