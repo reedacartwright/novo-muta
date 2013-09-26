@@ -80,29 +80,37 @@ class TrioModel(object):
         Returns:
             A scalar probability of a mutation given read data and parameters.
         """
-        # germline mutation probability, trans matrix
+        # transition matrices
         child_prob_mat = self.get_child_prob_mat()  # 16x256
-
-        # somatic mutation probability, trans matrix
         soma_and_geno_prob_mat = self.soma_and_geno()  # 16x16
 
-        # sequencing error probability
-        seq_prob_mat = self.seq_err_all()  # 3x16
-
         # multiply vectors by transition matrix
+        seq_prob_mat = self.seq_err_all()  # 3x16
         child_prob = seq_prob_mat[0].dot(soma_and_geno_prob_mat)  # 16
         mom_prob = seq_prob_mat[1].dot(soma_and_geno_prob_mat)  # 16
         dad_prob = seq_prob_mat[2].dot(soma_and_geno_prob_mat)  # 16
 
         # calculate denominator
         child_germ_prob = child_prob.dot(child_prob_mat)  # 1x256
-        parent_prob = np.kron(dad_prob, mom_prob)
+        parent_prob = np.kron(dad_prob, mom_prob)  # 1x256
         half_step_mat = np.multiply(child_germ_prob, self.parent_prob_mat)
         full_step_mat = np.multiply(half_step_mat, parent_prob)
         reads_given_params_proba = np.sum(full_step_mat)
         
-        # TODO: calculate numerator
-        no_muta_proba = 0
+        # calculate numerator
+        soma_and_geno_diag = ut.get_diag(soma_and_geno_prob_mat)  # 16x16
+        child_prob_num = seq_prob_mat[0].dot(soma_and_geno_diag)  # 16
+        mom_prob_num = seq_prob_mat[1].dot(soma_and_geno_diag)  # 16
+        dad_prob_num = seq_prob_mat[2].dot(soma_and_geno_diag)  # 16
+
+        child_prob_mat_num = self.get_child_prob_mat(no_muta=True)  # 16x256
+        child_germ_prob_num = child_prob_num.dot(child_prob_mat_num)  # 1x256
+        half_step_mat_num = np.multiply(
+            child_germ_prob_num,
+            self.parent_prob_mat
+        )
+        full_step_mat_num = np.multiply(half_step_mat_num, parent_prob)
+        no_muta_proba = np.sum(full_step_mat_num)
 
         no_muta_given_reads_proba = no_muta_proba/reads_given_params_proba
         return 1-no_muta_given_reads_proba
