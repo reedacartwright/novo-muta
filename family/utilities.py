@@ -183,7 +183,8 @@ def rescale_to_normal(arr):
 
 def scale_to_log(arr, max_elem):
     """
-    Scale a numpy array in normal space to log space.
+    Scale a specific numpy array in normal space to log space knowing its max
+    element.
 
     Currently used for testing purposes only.
 
@@ -196,3 +197,32 @@ def scale_to_log(arr, max_elem):
         A numpy array scaled to log space.
     """
     return arr * np.exp(max_elem)
+
+def scale_to_log_all(arr, max_elems):
+    """
+    Scale a numpy array in normal space to log space.
+
+    Currently used for testing purposes only.
+
+    Args:
+        arr: A multidimensional numpy array.
+        max_elems: A list of the greatest element in each of the subarrays
+            (stored when rescale_to_normal is called).
+
+    Returns:
+        A numpy array scaled to log space.
+    """
+    for i in range(len(arr)):
+        arr[i] = scale_to_log(arr[i], max_elems[i])
+    return arr
+
+def get_diag(arr):
+    """
+    Args:
+        arr: A numpy multidimensional array.
+
+    Returns:
+        The array with the major diagonal constant and the rest are replaced
+        with 0.
+    """
+    return np.diag(np.diag(arr))
