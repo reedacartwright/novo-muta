@@ -1,147 +1,228 @@
-import numpy as np
+import itertools
 import math
+
+import numpy as np
+from scipy import special as sp
+
+# global constants for specifiying array size
+NUCLEOTIDES = ['A', 'C', 'G', 'T']
+NUCLEOTIDE_COUNT = len(NUCLEOTIDES)  # 4
+NUCLEOTIDE_INDEX = {nt: i for i, nt in enumerate(NUCLEOTIDES)}
+
+# is the order of genotypes relevant?
+# use of genotype and index is consistent
+# lexicographical ordered set of 2 nucleotide strings
+# GENOTYPES = ['AA', 'AC', 'AG', 'AT', 'CC',
+#              'CG', 'CT', 'GG', 'GT', 'TT']
+
+GENOTYPES = ['%s%s' % pair
+    for pair in itertools.product(NUCLEOTIDES, repeat=2)
+]
+GENOTYPE_COUNT = len(GENOTYPES)  # 16
+GENOTYPE_INDEX = {gt: i for i, gt in enumerate(GENOTYPES)}
+
+# TODO: reduce genotypes from 16 to 10 by removing equivilants if efficiency
+#    becomes an issue
+GENOTYPE_LEFT_EQUIV = {
+    'AC':'CA', 'AG':'GA', 'AT':'TA',
+    'CG':'GC', 'CT':'TC', 'GT':'TG'
+}
+GENOTYPE_RIGHT_EQUIV = {v: k for k, v in GENOTYPE_LEFT_EQUIV.items()}
+
+# A 16 x 4 numpy array of Dirichlet multinomial alpha parameters
+# alpha = (alpha_1, ..., alpha_K) for a K-category Dirichlet distribution
+# (where K = 4 = NUCLEOTIDE_COUNT) that vary with each combination of parental
+# genotype and reference nt.
+# order of alphas must be same as GENOTYPES
+# currently for use as a test alpha
+# TODO: replace with actual alpha frequencies when Rachel completes research
+ALPHAS = np.array([
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25],
+    [0.25, 0.25, 0.25, 0.25]
+])
+
+
+def dirichlet_multinomial(alpha, n):
+    """
+    Calculate probability from the probability density function (pdf):
+
+    \frac{\gamma(\theta)}{\gamma(\theta + N)} *
+        \Pi_{i = A, C, G, T} \frac{\gamma(\alpha_i * \theta + n_i)}
+                                  {\gamma(\alpha_i * \theta}
+
+    We refer to the first term in the product as the constant_term,
+    because its value doesn't vary with the number of nucleotide counts,
+    and the second term in the product as the product_term.
+
+    Args:
+        alpha: A list of frequencies (doubles) for each category in the
+            multinomial that sum to one.
+        n: A list of samples (integers) for each category in the multinomial.
+
+    Returns:
+        A double equal to log_e(P) where P is the value calculated from the pdf.
+    """
+    N = sum(n)
+    A = sum(alpha)
+    constant_term = sp.gammaln(A) - sp.gammaln(N + A)
+    product_term = 0
+    for i, count in enumerate(n):
+        product_term += sp.gammaln(alpha[i] + count) - sp.gammaln(alpha[i])
+    return constant_term + product_term
 
 def two_parent_counts():
     """
-    Return the 16 x 16 x 4 numpy array of genotype counts where the
-    ijk'th entry of the array is the count of nucleotide k
-    in the i'th mother genotype and the j'th father genotype with
-    mother and father genotypes in the lexicographical ordered set
-    of 2 nucleotide strings
-        {'AA', 'AC', 'AG', 'AT', 'CA', ...}
+    Returns:
+        A 16 x 16 x 4 numpy array of genotype counts where the (i, j) element
+        of the array is the count of nucleotide k in the i'th mother genotype
+        and the j'th father genotype with mother and father genotypes.
     """
-    nucleotide_list = ['A', 'C', 'G', 'T']
+    gt_count = np.zeros((
+        GENOTYPE_COUNT,
+        GENOTYPE_COUNT,
+        NUCLEOTIDE_COUNT
+    ))
+    one_vec = np.ones((GENOTYPE_COUNT))
+    for nt, nt_idx in NUCLEOTIDE_INDEX.items():
+        for gt, gt_idx in GENOTYPE_INDEX.items():
+            for base in gt:
+                if base == nt:
+                    gt_count[gt_idx, :, nt_idx] += one_vec  # mother
+                    gt_count[:, gt_idx, nt_idx] += one_vec  # father
 
-    genotype_list = []
-    for nucleotide1 in nucleotide_list:
-        for nucleotide2 in nucleotide_list:
-            genotype_list.append(nucleotide1 + nucleotide2)
-
-    num_nucleotides = len(nucleotide_list)
-    mother_genotypes = len(genotype_list)
-    father_genotypes = len(genotype_list)
-
-    genotype_count = np.zeros((mother_genotypes, father_genotypes,
-                               num_nucleotides))
-    one_vec = np.ones((len(genotype_list)))
-    for nucleotide in xrange(num_nucleotides):
-        for mother_geno in xrange(mother_genotypes):
-            if genotype_list[mother_geno][0] == nucleotide_list[nucleotide]:
-                genotype_count[mother_geno, :, nucleotide] += one_vec
-            if genotype_list[mother_geno][1] == nucleotide_list[nucleotide]:
-                genotype_count[mother_geno, :, nucleotide] += one_vec
-
-        for father_geno in xrange(father_genotypes):
-            if genotype_list[father_geno][0] == nucleotide_list[nucleotide]:
-                genotype_count[:, father_geno, nucleotide] += one_vec
-            if genotype_list[father_geno][1] == nucleotide_list[nucleotide]:
-                genotype_count[:, father_geno, nucleotide] += one_vec
-
-    return genotype_count
+    return gt_count
 
 def one_parent_counts():
     """
-    Count the nucleotide frequencies for the 16 different 2-allele genotypes
+    Count the nucleotide frequencies for the 16 different 2-allele genotypes.
 
-    Return a 16 x 4 np.array whose first dimension corresponds to the
-    genotypes and whose second dimension is the frequency of each nucleotide
+    Returns:
+        A 16 x 4 numpy array where row/first dimension corresponds to the
+        genotypes and column/second dimension is the frequency of each
+        nucleotide.
     """
-    nucleotide_list = ['A', 'C', 'G', 'T']
-    genotype_list = []
-    for nucleotide1 in nucleotide_list:
-        for nucleotide2 in nucleotide_list:
-            genotype_list.append(nucleotide1 + nucleotide2)
-
-    counts = np.zeros((len(genotype_list), len(nucleotide_list)))
-    for gt in xrange(len(genotype_list)):
-        count_list = [0.0, 0.0, 0.0, 0.0]
-        for nt in xrange(len(nucleotide_list)):
-            if genotype_list[gt][0] == nucleotide_list[nt]:
-                count_list[nt] += 1
-            if genotype_list[gt][1] == nucleotide_list[nt]:
-                count_list[nt] += 1
-
-        counts[gt, :] = count_list
+    counts = np.zeros(( GENOTYPE_COUNT, NUCLEOTIDE_COUNT ))
+    for gt, gt_idx in GENOTYPE_INDEX.items():
+        count_list = [0.0] * NUCLEOTIDE_COUNT
+        for nt, nt_idx in NUCLEOTIDE_INDEX.items():
+            for base in gt:
+                if base == nt:
+                    count_list[nt_idx] += 1
+        counts[gt_idx, :] = count_list
 
     return counts
 
 def enum_nt_counts(size):
     """
-    Enumerate all nucleotide strings of a given size in lexicographic order
-    and return a 4^size x 4 numpy array of nucleotide counts associated
-    with the strings
+    Enumerate all nucleotide strings of a given size in lexicographic order.
+
+    Args:
+        size: The length of the nucleotide string.
+
+    Returns:
+        A 4^size x 4 numpy array of nucleotide counts associated with the
+        strings.
     """
-    nt_counts = np.zeros((math.pow(4,size), 4))
+    nt_counts = np.zeros((
+        math.pow(NUCLEOTIDE_COUNT, size),
+        NUCLEOTIDE_COUNT
+    ))
+    first = np.identity(NUCLEOTIDE_COUNT)
     if size == 1:
-        nt_counts = np.identity(4)
-        return nt_counts
+        return first
     else:
-        first = np.identity(4)
-        first_shape = (4, 4)
-        second = enum_nt_counts(size - 1)
+        first_shape = first.shape
+        second = enum_nt_counts(size - 1)  # recursive call
         second_shape = second.shape
-        for j in xrange(second_shape[0]):
-            for i in xrange(first_shape[0]):
-                nt_counts[i+j*4, :] = (first[i, :] + second[j, :])
+        for j in range(second_shape[0]):
+            for i in range(first_shape[0]):
+                nt_counts[i+j*NUCLEOTIDE_COUNT, :] = first[i, :] + second[j, :]
         return nt_counts
 
-def dc_alpha_parameters():
+def sum_exp(arr, axis=None):
     """
-    Generate Dirichlet multinomial alpha parameters
-    alpha = (alpha_1, ..., alpha_K) for a K-category Dirichlet distribution
-    (where K = 4 = #nt) that vary with each combination of parental 
-    genotype and reference nt
+    Sum the exponentials of all specified elements in an array.
+
+    Args:
+        arr: A numpy array.
+        axis (optional): The axis to calculate the sum.
+
+    Returns:
+        The sum of the exponentials of all elements in the array (calculated
+        probability given a probability matrix), or an array of the sum
+        calculated over an axis.
     """
-    nt_index = {'A':0,
-                'C':1,
-                'G':2,
-                'T':3}
+    return np.sum( np.exp(arr), axis=axis )
 
-    genotype_index = {'AA':0,
-                      'AC':1,
-                      'AG':2,
-                      'AT':3,
-                      'CA':4,
-                      'CC':5,
-                      'CG':6,
-                      'CT':7,
-                      'GA':8,
-                      'GC':9,
-                      'GG':10,
-                      'GT':11,
-                      'TA':12,
-                      'TC':13,
-                      'TG':14,
-                      'TT':15}
+def rescale_to_normal(arr):
+    """
+    Rescale a numpy array in log space to normal space.
 
-    geno_left_equiv = {'AC':'CA',
-                       'AG':'GA',
-                       'AT':'TA',
-                       'CG':'GC',
-                       'CT':'TC',
-                       'GT':'TG'}
+    Args:
+        arr: A numpy array.
 
-    geno_right_equiv = {'CA':'AC',
-                        'GA':'AG',
-                        'TA':'AT',
-                        'GC':'CG',
-                        'TC':'CT',
-                        'TG':'GT'}
+    Returns:
+        A numpy array rescaled to normal space (the highest element is 1).
+    """
+    max_elem = np.amax(arr)
+    return np.exp(arr-max_elem), max_elem
 
-    n_genotypes = len(genotype_index.keys())
-    n_nt = len(nt_index.keys())
+def scale_to_log(arr, max_elem):
+    """
+    Scale a specific numpy array in normal space to log space knowing its max
+    element.
 
-    # parental genotype, reference nt, alpha vector
-    alpha_mat = np.zeros((n_genotypes, n_nt, n_nt))
-    for i in xrange(n_genotypes):
-        for j in xrange(n_nt):
-            for k in xrange(n_nt):
-                alpha_mat[i, j, k] = 0.25
+    Currently used for testing purposes only.
 
-    return alpha_mat
+    Args:
+        arr: A numpy array.
+        max_elem: The greatest element in the array (stored when
+            rescale_to_normal is called).
 
-if __name__ == '__main__':
-    print enum_nt_counts(2)
-    print enum_nt_counts(2).shape
-    print enum_nt_counts(3)
-    print enum_nt_counts(3).shape
+    Returns:
+        A numpy array scaled to log space.
+    """
+    return arr * np.exp(max_elem)
+
+def scale_to_log_all(arr, max_elems):
+    """
+    Scale a numpy array in normal space to log space.
+
+    Currently used for testing purposes only.
+
+    Args:
+        arr: A multidimensional numpy array.
+        max_elems: A list of the greatest element in each of the subarrays
+            (stored when rescale_to_normal is called).
+
+    Returns:
+        A numpy array scaled to log space.
+    """
+    for i in range(len(arr)):
+        arr[i] = scale_to_log(arr[i], max_elems[i])
+    return arr
+
+def get_diag(arr):
+    """
+    Args:
+        arr: A numpy multidimensional array.
+
+    Returns:
+        The array with the major diagonal constant and the rest are replaced
+        with 0.
+    """
+    return np.diag(np.diag(arr))
