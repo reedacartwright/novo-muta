@@ -103,16 +103,18 @@ class TrioModel(object):
         mom_prob_num = seq_prob_mat[1].dot(soma_and_geno_diag)  # 16
         dad_prob_num = seq_prob_mat[2].dot(soma_and_geno_diag)  # 16
 
-        child_prob_mat_num = self.get_child_prob_mat(no_muta=True)  # 16x256
+        child_prob_mat_num = self.get_child_prob_mat(no_muta=True)  # 16x256 
         child_germ_prob_num = child_prob_num.dot(child_prob_mat_num)  # 1x256
         half_step_mat_num = np.multiply(
             child_germ_prob_num,
             self.parent_prob_mat
         )
         full_step_mat_num = np.multiply(half_step_mat_num, parent_prob)
-        no_muta_proba = np.sum(full_step_mat_num)
 
-        no_muta_given_reads_proba = no_muta_proba/reads_given_params_proba
+        final_mat = np.multiply(full_step_mat, full_step_mat_num)
+        num = np.sum(final_mat)
+
+        no_muta_given_reads_proba = num/reads_given_params_proba
         return 1-no_muta_given_reads_proba
 
     def seq_err(self, member):
@@ -137,7 +139,7 @@ class TrioModel(object):
             transition matrix.
         """
         # TODO: add bias when alpha freq are added
-        alpha_mat = np.array(ut.ALPHAS * self.seq_err_rate)
+        alpha_mat = ut.get_alphas(self.seq_err_rate)
         if self.dm_disp is not None:
             alpha_mat *= self.dm_disp
 

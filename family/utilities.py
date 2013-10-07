@@ -9,12 +9,7 @@ NUCLEOTIDES = ['A', 'C', 'G', 'T']
 NUCLEOTIDE_COUNT = len(NUCLEOTIDES)  # 4
 NUCLEOTIDE_INDEX = {nt: i for i, nt in enumerate(NUCLEOTIDES)}
 
-# is the order of genotypes relevant?
-# use of genotype and index is consistent
 # lexicographical ordered set of 2 nucleotide strings
-# GENOTYPES = ['AA', 'AC', 'AG', 'AT', 'CC',
-#              'CG', 'CT', 'GG', 'GT', 'TT']
-
 GENOTYPES = ['%s%s' % pair
     for pair in itertools.product(NUCLEOTIDES, repeat=2)
 ]
@@ -23,38 +18,56 @@ GENOTYPE_INDEX = {gt: i for i, gt in enumerate(GENOTYPES)}
 
 # TODO: reduce genotypes from 16 to 10 by removing equivilants if efficiency
 #    becomes an issue
+# GENOTYPES = ['AA', 'AC', 'AG', 'AT', 'CC',
+#              'CG', 'CT', 'GG', 'GT', 'TT']
 GENOTYPE_LEFT_EQUIV = {
     'AC':'CA', 'AG':'GA', 'AT':'TA',
     'CG':'GC', 'CT':'TC', 'GT':'TG'
 }
 GENOTYPE_RIGHT_EQUIV = {v: k for k, v in GENOTYPE_LEFT_EQUIV.items()}
 
-# A 16 x 4 numpy array of Dirichlet multinomial alpha parameters
-# alpha = (alpha_1, ..., alpha_K) for a K-category Dirichlet distribution
-# (where K = 4 = NUCLEOTIDE_COUNT) that vary with each combination of parental
-# genotype and reference nt.
-# order of alphas must be same as GENOTYPES
-# currently for use as a test alpha
-# TODO: replace with actual alpha frequencies when Rachel completes research
-ALPHAS = np.array([
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25],
-    [0.25, 0.25, 0.25, 0.25]
-])
 
+def get_alphas(rate):
+    """
+    Generate a 16 x 4 alpha matrix given the sequencing error rate. The order of
+    the alpha frequencies is given in the same order of genotypes.
+
+    Current values are placeholders for testing purposes.
+
+    TODO: Replace with actual alpha frequencies when Rachel completes research
+        or when parameters have been estimated.
+
+    Args:
+        rate: The sequencing error rate.
+
+    Returns:
+        A 16 x 4 numpy array of Dirichlet multinomial alpha parameters
+        alpha = (alpha_1, ..., alpha_K) for a K-category Dirichlet distribution
+        (where K = 4 = NUCLEOTIDE_COUNT) that vary with each combination of
+        parental genotype and reference nt.
+    """
+    return np.array([
+        # A            C             G             T
+        [1 - rate,     rate/3,       rate/3,       rate/3],
+        [0.5 - rate/3, 0.5 - rate/3, rate/3,       rate/3],
+        [0.5 - rate/3, rate/3,       0.5 - rate/3, rate/3],
+        [0.5 - rate/3, rate/3,       rate/3,       0.5 - rate/3],
+
+        [0.5 - rate/3, 0.5 - rate/3, rate/3,       rate/3],
+        [rate/3,       1 - rate,     rate/3,       rate/3],
+        [rate/3,       0.5 - rate/3, 0.5 - rate/3, rate/3],
+        [rate/3,       0.5 - rate/3, rate/3,       0.5 - rate/3],
+        
+        [0.5 - rate/3, rate/3,       0.5 - rate/3, rate/3],
+        [rate/3,       0.5 - rate/3, 0.5 - rate/3, rate/3],
+        [rate/3,       rate/3,       1 - rate,     rate/3],
+        [rate/3,       rate/3,       0.5 - rate/3, 0.5 - rate/3],
+
+        [0.5 - rate/3, rate/3,       rate/3,       0.5 - rate/3],
+        [rate/3,       0.5 - rate/3, rate/3,       0.5 - rate/3],
+        [rate/3,       rate/3,       0.5 - rate/3, 0.5 - rate/3],
+        [rate/3,       rate/3,       rate/3,       1 - rate]
+    ])
 
 def dirichlet_multinomial(alpha, n):
     """

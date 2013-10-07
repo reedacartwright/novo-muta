@@ -56,7 +56,7 @@ class TestTrioModel(unittest.TestCase):
 
     def test_trio(self):
         proba = self.trio_model.trio()
-        self.assertAlmostEqual(proba, 0)
+        self.assertAlmostEqual(proba, 1)
 
 if __name__ == '__main__':
     unittest.main()
