@@ -17,11 +17,13 @@ from family import utilities as ut
 
 
 class TestTrioModel(unittest.TestCase):
-
     def setUp(self):
         # reads must be 3x4
         self.trio_model = TrioModel(
-            reads=ut.enum_nt_counts(2),  # 2-allele genotypes
+            reads=[[30, 0, 0, 0],
+                   [30, 0, 0, 0],
+                   [30, 0, 0, 0]],
+            #reads=ut.enum_nt_counts(2),  # 2-allele genotypes
             pop_muta_rate=0.001,
             germ_muta_rate=0.00000002,
             soma_muta_rate=0.00000002,
@@ -38,7 +40,7 @@ class TestTrioModel(unittest.TestCase):
     def test_germ_muta(self):
         child_prob_mat = self.trio_model.get_child_prob_mat()
         proba = np.sum(child_prob_mat)
-        self.assertAlmostEqual(proba, 1)
+        self.assertAlmostEqual(proba, 256)
 
     def test_soma_muta(self):
         soma_and_geno = self.trio_model.soma_and_geno()

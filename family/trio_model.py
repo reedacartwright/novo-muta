@@ -26,9 +26,7 @@ class TrioModel(object):
             from parent_prob_mat.
         parent_prob_mat: A 16 x 16 probability matrix of the parents in
             log space (see pop_sample).
-
     """
-
     def __init__(self, reads=None,
                  pop_muta_rate=0, germ_muta_rate=0, soma_muta_rate=0,
                  seq_err_rate=0, dm_disp=None, dm_bias=None):
@@ -93,9 +91,9 @@ class TrioModel(object):
         # calculate denominator
         child_germ_prob = child_prob.dot(child_prob_mat)  # 1x256
         parent_prob = np.kron(dad_prob, mom_prob)  # 1x256
-        half_step_mat = np.multiply(child_germ_prob, self.parent_prob_mat)
-        full_step_mat = np.multiply(half_step_mat, parent_prob)
-        reads_given_params_proba = np.sum(full_step_mat)
+        dem_mat = np.multiply(child_germ_prob, parent_prob)
+        dem_mat = np.multiply(dem_mat, self.parent_prob_mat)
+        reads_given_params_proba = np.sum(dem_mat)
         
         # calculate numerator
         soma_and_geno_diag = ut.get_diag(soma_and_geno_prob_mat)  # 16x16
@@ -105,14 +103,11 @@ class TrioModel(object):
 
         child_prob_mat_num = self.get_child_prob_mat(no_muta=True)  # 16x256 
         child_germ_prob_num = child_prob_num.dot(child_prob_mat_num)  # 1x256
-        half_step_mat_num = np.multiply(
-            child_germ_prob_num,
-            self.parent_prob_mat
-        )
-        full_step_mat_num = np.multiply(half_step_mat_num, parent_prob)
-
-        final_mat = np.multiply(full_step_mat, full_step_mat_num)
-        num = np.sum(final_mat)
+        parent_prob_num = np.kron(dad_prob_num, mom_prob_num) # 1x256
+        num_mat = np.multiply(child_germ_prob_num, parent_prob_num)
+        num_mat = np.multiply(num_mat, self.parent_prob_mat)
+        num_mat = np.multiply(num_mat, dem_mat)
+        num = np.sum(num_mat)
 
         no_muta_given_reads_proba = num/reads_given_params_proba
         return 1-no_muta_given_reads_proba
@@ -248,7 +243,7 @@ class TrioModel(object):
 
         return self.join_soma(soma_given_geno)
 
-    def germ_muta(self, child_chrom, mom_chrom, dad_chrom, no_muta):
+    def germ_muta(self, child_chrom_base, parent_chrom, no_muta):
         """
         Calculate the probability of germline mutation and parent chromosome 
         donation in the same step. Assume the first chromosome is associated
@@ -256,9 +251,8 @@ class TrioModel(object):
         father.
 
         Args:
-            child_chrom: The 2-allele genotype string of the child.
-            mom_chrom: The 2-allele genotype string of the mother.
-            dad_chrom: The 2-allele genotype string of the father.
+            child_chrom_base: The nucleotide string of the child.
+            parent_chrom: The 2-allele genotype string of a parent.
 
         Returns:
             The probability of germline mutation.
@@ -268,18 +262,13 @@ class TrioModel(object):
         hetero_match = 0.25 + 0.25 * exp_term
         no_match = 0.25 - 0.25 * exp_term
 
-        def get_term_match(child_chrom_base, parent_chrom, no_muta):
-            if child_chrom_base in parent_chrom:
-                if parent_chrom[0] == parent_chrom[1]:
-                    return homo_match
-                else:
-                    return hetero_match if no_muta is False else hetero_match/2
+        if child_chrom_base in parent_chrom:
+            if parent_chrom[0] == parent_chrom[1]:
+                return homo_match
             else:
-                return no_match if no_muta is False else 0
-
-        term1 = get_term_match(child_chrom[0], mom_chrom, no_muta)
-        term2 = get_term_match(child_chrom[1], dad_chrom, no_muta)
-        return term1 * term2
+                return hetero_match if no_muta is False else hetero_match/2
+        else:
+            return no_match if no_muta is False else 0
 
     def get_child_prob_mat(self, no_muta=False):
         """
@@ -287,29 +276,17 @@ class TrioModel(object):
         probability matrix of the parents and mutation rate.
 
         Returns:
-            A 16 x 256 probability matrix.
+            A 16 x 256 probability matrix derived from the Kronecker product
+            of a 4 x 16 probability matrix given one parent with itself.
         """
-        child_prob_mat = np.zeros((
-            ut.GENOTYPE_COUNT,
-            ut.GENOTYPE_COUNT * ut.GENOTYPE_COUNT
-        ))
+        child_prob_mat = np.zeros(( ut.NUCLEOTIDE_COUNT, ut.GENOTYPE_COUNT ))
 
-        for mother_gt, mom_idx in ut.GENOTYPE_INDEX.items():
-            for father_gt, dad_idx in ut.GENOTYPE_INDEX.items():
-                for child_gt, child_idx in ut.GENOTYPE_INDEX.items():
-                    child_given_parent = self.germ_muta(
-                        child_gt,
-                        mother_gt,
-                        father_gt,
-                        no_muta
-                    )
-                    # mom is first parent
-                    flat_idx = mom_idx*ut.GENOTYPE_COUNT + dad_idx
-                    parent = self.parent_prob_mat[flat_idx]
-                    event = child_given_parent * parent
-                    child_prob_mat[child_idx, flat_idx] = event
+        for nt, nt_idx in ut.NUCLEOTIDE_INDEX.items():
+            for gt, gt_idx in ut.GENOTYPE_INDEX.items():
+                child_given_parent = self.germ_muta(nt, gt, no_muta)
+                child_prob_mat[nt_idx, gt_idx] = child_given_parent
 
-        return child_prob_mat
+        return np.kron(child_prob_mat, child_prob_mat)
 
     def pop_sample(self):
         """
@@ -339,7 +316,7 @@ class TrioModel(object):
             A 1 x 256 probability matrix in log e space where the (i, j)
             element in the matrix is the probability that the mother has
             genotype i and the father has genotype j where i, j in
-            {AA, AC, AG, AT, 
+            {AA, AC, AG, AT,
              CA, CC, CG, CT,
              GA, GC, GG, GT,
              TA, TC, TG, TT}.
