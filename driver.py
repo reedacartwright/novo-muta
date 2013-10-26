@@ -35,9 +35,9 @@ for line in handle:
     reads = [child_read, mom_read, dad_read]
     rates_arr = values[12:16]
     rates = [float(rate) for rate in rates_arr]
-    disp = values[13] if not values[13] else None
-    bias = values[14] if not values[14] else None
-
+    disp = float(values[16])
+    bias = float(values[17])
+    
     trio_model = TrioModel(
         reads=reads,
         pop_muta_rate=rates[0],

@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-import utilities as ut
+import family.utilities as ut
 
 
 class TrioModel(object):
@@ -81,13 +81,13 @@ class TrioModel(object):
         # transition matrices
         child_prob_mat = self.get_child_prob_mat()  # 16x256
         soma_and_geno_prob_mat = self.soma_and_geno()  # 16x16
-
+		
         # multiply vectors by transition matrix
         seq_prob_mat = self.seq_err_all()  # 3x16
         child_prob = seq_prob_mat[0].dot(soma_and_geno_prob_mat)  # 16
         mom_prob = seq_prob_mat[1].dot(soma_and_geno_prob_mat)  # 16
         dad_prob = seq_prob_mat[2].dot(soma_and_geno_prob_mat)  # 16
-
+		
         # calculate denominator
         child_germ_prob = child_prob.dot(child_prob_mat)  # 1x256
         parent_prob = np.kron(dad_prob, mom_prob)  # 1x256
@@ -100,15 +100,14 @@ class TrioModel(object):
         child_prob_num = seq_prob_mat[0].dot(soma_and_geno_diag)  # 16
         mom_prob_num = seq_prob_mat[1].dot(soma_and_geno_diag)  # 16
         dad_prob_num = seq_prob_mat[2].dot(soma_and_geno_diag)  # 16
-
+        		
         child_prob_mat_num = self.get_child_prob_mat(no_muta=True)  # 16x256 
         child_germ_prob_num = child_prob_num.dot(child_prob_mat_num)  # 1x256
         parent_prob_num = np.kron(dad_prob_num, mom_prob_num) # 1x256
         num_mat = np.multiply(child_germ_prob_num, parent_prob_num)
         num_mat = np.multiply(num_mat, self.parent_prob_mat)
-        num_mat = np.multiply(num_mat, dem_mat)
         num = np.sum(num_mat)
-
+				
         no_muta_given_reads_proba = num/reads_given_params_proba
         return 1-no_muta_given_reads_proba
 
@@ -137,7 +136,9 @@ class TrioModel(object):
         alpha_mat = ut.get_alphas(self.seq_err_rate)
         if self.dm_disp is not None:
             alpha_mat *= self.dm_disp
-
+        else:
+            alpha_mat *= 1000;
+            
         prob_read_given_soma = np.zeros((ut.GENOTYPE_COUNT))
         for i, alpha in enumerate(alpha_mat):
             log_proba = ut.dirichlet_multinomial(alpha, self.reads[member])
@@ -231,17 +232,7 @@ class TrioModel(object):
             somatic genotypes and second dimension is that for true genotypes.
         """
         prob_vec = self.get_soma_vec()
-        soma_given_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
-        for chrom1, i in ut.NUCLEOTIDE_INDEX.items():
-            given_chrom1_vec = prob_vec[:, i]
-            for chrom2, j in ut.NUCLEOTIDE_INDEX.items():
-                given_chrom2_vec = prob_vec[:, i]
-                soma_muta_index = i * ut.NUCLEOTIDE_COUNT + j
-                outer_prod = np.outer(given_chrom1_vec, given_chrom2_vec)
-                outer_prod_flat = outer_prod.flatten()
-                soma_given_geno[:, soma_muta_index] = outer_prod_flat
-
-        return self.join_soma(soma_given_geno)
+        return np.kron(prob_vec,prob_vec)
 
     def germ_muta(self, child_chrom_base, parent_chrom, no_muta):
         """
@@ -266,7 +257,7 @@ class TrioModel(object):
             if parent_chrom[0] == parent_chrom[1]:
                 return homo_match
             else:
-                return hetero_match if no_muta is False else hetero_match/2
+                return hetero_match if no_muta is False else homo_match/2
         else:
             return no_match if no_muta is False else 0
 
