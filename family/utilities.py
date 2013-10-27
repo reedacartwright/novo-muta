@@ -166,21 +166,6 @@ def enum_nt_counts(size):
                 nt_counts[i+j*NUCLEOTIDE_COUNT, :] = first[i, :] + second[j, :]
         return nt_counts
 
-def sum_exp(arr, axis=None):
-    """
-    Sum the exponentials of all specified elements in an array.
-
-    Args:
-        arr: A numpy array.
-        axis (optional): The axis to calculate the sum.
-
-    Returns:
-        The sum of the exponentials of all elements in the array (calculated
-        probability given a probability matrix), or an array of the sum
-        calculated over an axis.
-    """
-    return np.sum( np.exp(arr), axis=axis )
-
 def rescale_to_normal(arr):
     """
     Rescale a numpy array in log space to normal space.

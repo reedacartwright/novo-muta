@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-import utilities as ut
+from family import utilities as ut
 
 
 class TrioModel(object):
@@ -28,8 +28,9 @@ class TrioModel(object):
             log space (see pop_sample).
     """
     def __init__(self, reads=None,
-                 pop_muta_rate=0, germ_muta_rate=0, soma_muta_rate=0,
-                 seq_err_rate=0, dm_disp=None, dm_bias=None):
+                 pop_muta_rate=0.001, germ_muta_rate=0.00000002,
+                 soma_muta_rate=0.00000002, seq_err_rate=0.005,
+                 dm_disp=1000, dm_bias=None):
         """
         Initializes the given parameters or to 0 for rates and None for
         Dirichlet multinomial parameters if none are given. parent_prob_mat is
@@ -89,12 +90,12 @@ class TrioModel(object):
         dad_prob = seq_prob_mat[2].dot(soma_and_geno_prob_mat)  # 16
 
         # calculate denominator
-        child_germ_prob = child_prob.dot(child_prob_mat)  # 1x256
         parent_prob = np.kron(dad_prob, mom_prob)  # 1x256
+        child_germ_prob = child_prob.dot(child_prob_mat)  # 1x256
         dem_mat = np.multiply(child_germ_prob, parent_prob)
         dem_mat = np.multiply(dem_mat, self.parent_prob_mat)
-        reads_given_params_proba = np.sum(dem_mat)
-        
+        dem = np.sum(dem_mat)
+
         # calculate numerator
         soma_and_geno_diag = ut.get_diag(soma_and_geno_prob_mat)  # 16x16
         child_prob_num = seq_prob_mat[0].dot(soma_and_geno_diag)  # 16
@@ -106,10 +107,9 @@ class TrioModel(object):
         parent_prob_num = np.kron(dad_prob_num, mom_prob_num) # 1x256
         num_mat = np.multiply(child_germ_prob_num, parent_prob_num)
         num_mat = np.multiply(num_mat, self.parent_prob_mat)
-        num_mat = np.multiply(num_mat, dem_mat)
         num = np.sum(num_mat)
 
-        no_muta_given_reads_proba = num/reads_given_params_proba
+        no_muta_given_reads_proba = num/dem
         return 1-no_muta_given_reads_proba
 
     def seq_err(self, member):
@@ -134,9 +134,7 @@ class TrioModel(object):
             transition matrix.
         """
         # TODO: add bias when alpha freq are added
-        alpha_mat = ut.get_alphas(self.seq_err_rate)
-        if self.dm_disp is not None:
-            alpha_mat *= self.dm_disp
+        alpha_mat = ut.get_alphas(self.seq_err_rate) * self.dm_disp
 
         prob_read_given_soma = np.zeros((ut.GENOTYPE_COUNT))
         for i, alpha in enumerate(alpha_mat):
@@ -188,60 +186,23 @@ class TrioModel(object):
 
         return term1 + ind_term_chrom1
 
-    def get_soma_vec(self):
-        """
-        Compute event space for somatic nucleotide given a genotype nucleotide
-        for a single chromosome.
-
-        Returns:
-            A 4 x 4 probability vector.
-        """
-        prob_vec = np.zeros(( ut.NUCLEOTIDE_COUNT, ut.NUCLEOTIDE_COUNT ))
-        for soma_nt, i in ut.NUCLEOTIDE_INDEX.items():
-            for geno_nt, j in ut.NUCLEOTIDE_INDEX.items():
-                prob_vec[i, j] = self.soma_muta(soma_nt, geno_nt)
-        return prob_vec
-
-    def join_soma(self, soma_given_geno):
-        """
-        Compute the joint probabilities.
-
-        Args:
-            soma_given_geno: A 16 x 16 matrix where the first dimension is the
-                lexicographically ordered pairs of letters from nt alphabet
-                for somatic genotypes and second dimension is that for true
-                genotypes.
-
-        Returns:
-            A 16 x 16 probability matrix.
-        """
-        soma_and_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
-        for i in range(ut.GENOTYPE_COUNT):
-            soma_and_geno[:, i] = self.geno[i] * soma_given_geno[:, i]
-        return soma_and_geno
-
     def soma_and_geno(self):
         """
-        Combine event spaces for two chromosomes (independent of each other)
-        and calculate somatic mutation probability matrix for a single parent.
+        Compute event space for somatic nucleotide given a genotype nucleotide
+        for a single chromosome. Combine event spaces for two chromosomes
+        (independent of each other) and calculate somatic mutation probability
+        matrix for a single parent.
 
         Returns:
             A 16 x 16 matrix where the first dimension is the
             lexicographically ordered pairs of letters from nt alphabet for
             somatic genotypes and second dimension is that for true genotypes.
         """
-        prob_vec = self.get_soma_vec()
-        soma_given_geno = np.zeros(( ut.GENOTYPE_COUNT, ut.GENOTYPE_COUNT ))
-        for chrom1, i in ut.NUCLEOTIDE_INDEX.items():
-            given_chrom1_vec = prob_vec[:, i]
-            for chrom2, j in ut.NUCLEOTIDE_INDEX.items():
-                given_chrom2_vec = prob_vec[:, i]
-                soma_muta_index = i * ut.NUCLEOTIDE_COUNT + j
-                outer_prod = np.outer(given_chrom1_vec, given_chrom2_vec)
-                outer_prod_flat = outer_prod.flatten()
-                soma_given_geno[:, soma_muta_index] = outer_prod_flat
-
-        return self.join_soma(soma_given_geno)
+        prob_vec = np.zeros(( ut.NUCLEOTIDE_COUNT, ut.NUCLEOTIDE_COUNT ))
+        for soma_nt, i in ut.NUCLEOTIDE_INDEX.items():
+            for geno_nt, j in ut.NUCLEOTIDE_INDEX.items():
+                prob_vec[i, j] = self.soma_muta(soma_nt, geno_nt)
+        return np.kron(prob_vec, prob_vec)
 
     def germ_muta(self, child_chrom_base, parent_chrom, no_muta):
         """
@@ -266,7 +227,7 @@ class TrioModel(object):
             if parent_chrom[0] == parent_chrom[1]:
                 return homo_match
             else:
-                return hetero_match if no_muta is False else hetero_match/2
+                return hetero_match if no_muta is False else homo_match/2
         else:
             return no_match if no_muta is False else 0
 
