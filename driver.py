@@ -33,7 +33,7 @@ for line in handle:
     reads = [child_read, mom_read, dad_read]
     rates_arr = values[12:16]
     rates = [float(rate) for rate in rates_arr]
-    disp = float(values[16]) if values[16] else 1000
+    disp = float(values[16]) if values[16] else 10000000
     bias = float(values[17]) if values[17] else None
 
     trio_model = TrioModel(

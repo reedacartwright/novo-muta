@@ -75,6 +75,11 @@ class TrioModel(object):
                                 Mother   Daughter  Father
                                 Genotype Genotype  Genotype
                                 Reads    Reads     Reads
+        
+        See Cartwright et al.: Family-Based Method for Capturing De Novo
+        Mutations.
+
+        http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3728889/
 
         Returns:
             A scalar probability of a mutation given read data and parameters.
@@ -165,26 +170,20 @@ class TrioModel(object):
         """
         Calculate the probability of somatic mutation.
 
-        Terms refer to that of equation 5 on page 7 of Cartwright et al.:
-        Family-Based Method for Capturing De Novo Mutations.
-
-        http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3728889/
-
         Args:
-            soma1: A nucleotide character.
-            chrom1: Another nucleotide chracter to be compared.
+            soma: A nucleotide character.
+            chrom: Another nucleotide chracter to be compared.
 
         Returns:
             The probability of somatic mutation.
         """
         exp_term = np.exp(-4.0/3.0 * self.soma_muta_rate)
-        term1 = 0.25 - 0.25 * exp_term
-        # term2 is indicator term
+        term = 0.25 - 0.25 * exp_term
 
         # check if indicator function is true for each chromosome
-        ind_term_chrom1 = exp_term if soma == chrom else 0
+        ind_term_chrom = exp_term if soma == chrom else 0
 
-        return term1 + ind_term_chrom1
+        return term + ind_term_chrom
 
     def soma_and_geno(self):
         """
@@ -227,9 +226,9 @@ class TrioModel(object):
             if parent_chrom[0] == parent_chrom[1]:
                 return homo_match
             else:
-                return hetero_match if no_muta is False else homo_match/2
+                return hetero_match if not no_muta else homo_match/2
         else:
-            return no_match if no_muta is False else 0
+            return no_match if not no_muta else 0
 
     def get_child_prob_mat(self, no_muta=False):
         """
@@ -241,12 +240,9 @@ class TrioModel(object):
             of a 4 x 16 probability matrix given one parent with itself.
         """
         child_prob_mat = np.zeros(( ut.NUCLEOTIDE_COUNT, ut.GENOTYPE_COUNT ))
-
-        for nt, nt_idx in ut.NUCLEOTIDE_INDEX.items():
-            for gt, gt_idx in ut.GENOTYPE_INDEX.items():
-                child_given_parent = self.germ_muta(nt, gt, no_muta)
-                child_prob_mat[nt_idx, gt_idx] = child_given_parent
-
+        for nt, i in ut.NUCLEOTIDE_INDEX.items():
+            for gt, j in ut.GENOTYPE_INDEX.items():
+                child_prob_mat[i, j] = self.germ_muta(nt, gt, no_muta)
         return np.kron(child_prob_mat, child_prob_mat)
 
     def pop_sample(self):
