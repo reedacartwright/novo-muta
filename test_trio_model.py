@@ -28,20 +28,14 @@ class TestTrioModel(unittest.TestCase):
 
     def test_soma_muta(self):
         soma_and_geno = self.trio_model.soma_and_geno()
-        soma_proba = np.sum(soma_and_geno)
-        self.assertAlmostEqual(soma_proba, 16)
+        proba = np.sum(soma_and_geno)
+        self.assertAlmostEqual(proba, 16)
 
-    # use generic nucleotide set
     def test_seq_err(self):
-        seq_prob_mat = self.generic_trio_model.seq_err_all()
-        seq_prob_mat_scaled = ut.scale_to_log_all(
-            seq_prob_mat,
-            self.generic_trio_model.max_elems
-        )
-        proba = np.sum(seq_prob_mat_scaled)
-        self.assertAlmostEqual(proba, 16)  # 16 alpha freq
+        seq_prob_mat = self.trio_model.seq_err_all()
+        proba = np.sum(seq_prob_mat)
+        self.assertAlmostEqual(proba, 3)
 
-    # use actual 3 x 4 read data
     def test_trio(self):
         proba = self.trio_model.trio()
         self.assertAlmostEqual(proba, 0)

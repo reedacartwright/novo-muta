@@ -141,17 +141,15 @@ class TrioModel(object):
         # TODO: add bias when alpha freq are added
         alpha_mat = ut.get_alphas(self.seq_err_rate) * self.dm_disp
 
-        prob_read_given_soma = np.zeros((ut.GENOTYPE_COUNT))
+        prob_mat = np.zeros((ut.GENOTYPE_COUNT))
         for i, alpha in enumerate(alpha_mat):
             log_proba = ut.dirichlet_multinomial(alpha, self.reads[member])
-            prob_read_given_soma[i] = log_proba
+            prob_mat[i] = log_proba
 
-        prob_read_given_soma_rescaled, max_elem = ut.rescale_to_normal(
-            prob_read_given_soma
-        )
+        prob_mat_rescaled, max_elem = ut.rescale_to_normal(prob_mat)
         self.max_elems.append(max_elem)
 
-        return prob_read_given_soma_rescaled
+        return prob_mat_rescaled
 
     def seq_err_all(self):
         """

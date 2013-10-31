@@ -194,7 +194,7 @@ def scale_to_log(arr, max_elem):
     Returns:
         A numpy array scaled to log space.
     """
-    return arr * np.exp(max_elem)
+    return np.log(arr) + max_elem
 
 def scale_to_log_all(arr, max_elems):
     """
