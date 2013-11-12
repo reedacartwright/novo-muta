@@ -166,7 +166,7 @@ def enum_nt_counts(size):
                 nt_counts[i+j*NUCLEOTIDE_COUNT, :] = first[i, :] + second[j, :]
         return nt_counts
 
-def rescale_to_normal(arr):
+def normalspace(arr):
     """
     Rescale a numpy array in log space to normal space.
 
@@ -179,7 +179,7 @@ def rescale_to_normal(arr):
     max_elem = np.amax(arr)
     return np.exp(arr-max_elem), max_elem
 
-def scale_to_log(arr, max_elem):
+def logspace(arr, max_elem):
     """
     Scale a specific numpy array in normal space to log space knowing its max
     element.
@@ -196,7 +196,7 @@ def scale_to_log(arr, max_elem):
     """
     return np.log(arr) + max_elem
 
-def scale_to_log_all(arr, max_elems):
+def logspace_all(arr, max_elems):
     """
     Scale a numpy array in normal space to log space.
 

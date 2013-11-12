@@ -146,7 +146,7 @@ class TrioModel(object):
             log_proba = ut.dirichlet_multinomial(alpha, self.reads[member])
             prob_mat[i] = log_proba
 
-        prob_mat_rescaled, max_elem = ut.rescale_to_normal(prob_mat)
+        prob_mat_rescaled, max_elem = ut.normalspace(prob_mat)
         self.max_elems.append(max_elem)
 
         return prob_mat_rescaled

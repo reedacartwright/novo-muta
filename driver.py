@@ -19,7 +19,7 @@ import sys
 from family.trio_model import TrioModel
 from family import utilities as ut
 
-# run python driver.py parameters.txt
+# run python driver.py <parameters.txt>
 handle = open(sys.argv[1])
 
 for line in handle:
@@ -33,7 +33,7 @@ for line in handle:
     reads = [child_read, mom_read, dad_read]
     rates_arr = values[12:16]
     rates = [float(rate) for rate in rates_arr]
-    disp = float(values[16]) if values[16] else 10000000
+    disp = float(values[16]) if values[16] else 100000
     bias = float(values[17]) if values[17] else None
 
     trio_model = TrioModel(
@@ -46,6 +46,7 @@ for line in handle:
         dm_bias=bias
     )
     proba = trio_model.trio()
+    print(reads)
     print(proba)
 
 handle.close()
