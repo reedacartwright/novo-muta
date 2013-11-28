@@ -30,7 +30,7 @@ class TrioModel(object):
     def __init__(self, reads=None,
                  pop_muta_rate=0.001, germ_muta_rate=0.00000002,
                  soma_muta_rate=0.00000002, seq_err_rate=0.005,
-                 dm_disp=1000, dm_bias=None):
+                 dm_disp=100000, dm_bias=None):
         """
         Initializes the given parameters or to 0 for rates and None for
         Dirichlet multinomial parameters if none are given. parent_prob_mat is
