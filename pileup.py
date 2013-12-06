@@ -13,7 +13,7 @@ DEFAULT_FILENAME = 'pileup_muta_prob.txt'
 THRESHOLD = 0.01
 
 
-def trimHeader(lines):
+def trim_header(lines):
     """
     Remove initial sequences that are not necessary.
     Assume there are sequences that are not N.
@@ -34,7 +34,7 @@ def trimHeader(lines):
         else:
             return lines[count:]
 
-def getReads(line):
+def get_reads(line):
     """
     Parse pileup data into an array of read counts per nucleotide.
 
@@ -58,7 +58,7 @@ def getReads(line):
              'T': [A, C, G, matches]}
     return pairs.get(ref)
 
-def writeProba(child, mother, father, filename):
+def write_proba(child, mother, father, filename):
     """
     Write probabilites of each site on a new line to a text file.
 
@@ -68,12 +68,12 @@ def writeProba(child, mother, father, filename):
         father: Contents of the father pileup file.
         filename: String name of file to be written.
     """
-    child_lines = trimHeader(child)
-    mother_lines = trimHeader(mother)
-    father_lines = trimHeader(father)
+    child_lines = trim_header(child)
+    mother_lines = trim_header(mother)
+    father_lines = trim_header(father)
     fout = open(filename, 'w')
     for c, m, f in itertools.izip_longest(child_lines, mother_lines, father_lines):
-        reads = [getReads(c), getReads(m), getReads(f)]
+        reads = [get_reads(c), get_reads(m), get_reads(f)]
         trio_model = TrioModel(reads=reads)
         proba = trio_model.trio()
         if proba >= THRESHOLD:

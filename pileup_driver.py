@@ -27,4 +27,4 @@ child.close()
 mother.close()
 father.close()
 
-pileup.writeProba(child_lines, mother_lines, father_lines, filename)
+pileup.write_proba(child_lines, mother_lines, father_lines, filename)

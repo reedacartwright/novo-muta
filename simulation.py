@@ -25,7 +25,7 @@ def muta(trio_model, gt, is_soma=True):
         trio_model: TrioModel object that contains all default parameters
             including germline and somatic mutation rates.
         gt: The genotype to be mutated.
-        is_geno: True to use somatic mutation rate, False to use germline
+        is_soma: True to use somatic mutation rate, False to use germline
             mutation rate.
 
     Returns:
