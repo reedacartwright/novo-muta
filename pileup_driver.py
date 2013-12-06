@@ -17,7 +17,7 @@ import pileup
 child = open(sys.argv[1])
 mother = open(sys.argv[2])
 father = open(sys.argv[3])
-filename = sys.argv[4] if sys.argv[4] is not None else pileup.DEFAULT_FILENAME
+filename = sys.argv[4]
 
 child_lines = child.readlines()
 mother_lines = mother.readlines()

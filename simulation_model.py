@@ -44,7 +44,7 @@ class SimulationModel(object):
         self.dad_read = self.multinomial_sample(self.dad_soma_gt)
         self.child_read = self.multinomial_sample(self.child_soma_gt)
         self.trio_model.reads = [self.child_read, self.mom_read, self.dad_read]
-        self.proba = self.trio_model.trio()
+        self.proba = str(self.trio_model.trio())
 
     def muta(self, gt, is_soma=True):
         """
@@ -110,6 +110,19 @@ class SimulationModel(object):
         print(self.dad_read)
         print('Child read: ', end='')
         print(self.child_read)
-        print('Probability of mutation: %s' % str(self.proba))
+        print('Probability of mutation: %s' % self.proba)
 
-SimulationModel().print_all()
+    @classmethod
+    def write_proba(cls, filename, exp_count):
+        """
+        Generate exp_count samples and output their probabilities to a file.
+        
+        Args:
+            filename: Name of output file.
+            exp_count: Number of samples to generate.
+        """
+        fout = open(filename, 'w')
+        for x in range(exp_count):
+            sim_model = cls()
+            fout.write('%s\n' % sim_model.proba)
+        fout.close()

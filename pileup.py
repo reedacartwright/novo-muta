@@ -9,7 +9,6 @@ import sys
 from family.trio_model import TrioModel
 from family import utilities as ut
 
-DEFAULT_FILENAME = 'pileup_muta_prob.txt'
 THRESHOLD = 0.01
 
 
