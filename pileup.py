@@ -27,7 +27,7 @@ def trim_header(lines):
     """
     count = 0
     for line in lines:
-        values = line.strip("\n").split("\t")
+        values = line.strip('\n').split('\t')
         ref = values[2]
         if ref == 'N':
             count += 1
@@ -44,14 +44,14 @@ def get_reads(line):
     Returns:
         Array containing read counts [#A, #C, #G, #T].
     """
-    values = line.strip("\n").split("\t")
+    values = line.strip('\n').split('\t')
     ref = values[2]
     bases = values[4]
-    matches = bases.count(".") + bases.count(",")
-    A = bases.count("A") + bases.count("a")
-    C = bases.count("C") + bases.count("c")
-    G = bases.count("G") + bases.count("g")
-    T = bases.count("T") + bases.count("t")
+    matches = bases.count('.') + bases.count(',')
+    A = bases.count('A') + bases.count('a')
+    C = bases.count('C') + bases.count('c')
+    G = bases.count('G') + bases.count('g')
+    T = bases.count('T') + bases.count('t')
     pairs = {'A': [matches, C, G, T],
              'C': [A, matches, G, T],
              'G': [A, C, matches, T],
@@ -77,6 +77,6 @@ def write_proba(child, mother, father, filename):
         trio_model = TrioModel(reads=reads)
         proba = trio_model.trio()
         if proba >= THRESHOLD:
-            site_proba = "%s\t%s\n" % (c.split("\t")[1], str(proba))
+            site_proba = '%s\t%s\n' % (c.split("\t")[1], str(proba))
             fout.write(site_proba)
     fout.close()

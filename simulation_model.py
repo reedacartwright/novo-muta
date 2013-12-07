@@ -36,6 +36,7 @@ class SimulationModel(object):
     Attributes:
         trio_model: TrioModel object that contains all default parameters.
         cov: Integer representing coverage or the number of experiments.
+        has_muta: Boolean representing if this site contains a mutation.
         mom_gt: 2-character string representing mother genotype.
         dad_gt: 2-character string representing father genotype.
         child_gt: 2-character string representing child genotype.
@@ -55,6 +56,7 @@ class SimulationModel(object):
         """
         self.trio_model = TrioModel()
         self.cov = 50
+        self.has_muta = False
         self._initialize()
 
     def _initialize(self):
@@ -80,7 +82,8 @@ class SimulationModel(object):
     def muta(self, gt, is_soma=True):
         """
         Mutate each allele in a genotype if a random number drawn [0, 1) is less
-        than the germline or somatic mutation rate.
+        than the germline or somatic mutation rate. Set has_muta to True if a
+        mutation occurred, otherwise leave as False.
 
         Args:
             gt: 2-character string representing genotype to be mutated.
@@ -106,6 +109,7 @@ class SimulationModel(object):
                 muta_nt_pool = muta_nts.get(gt[allele])
                 muta_nt = np.random.choice(muta_nt_pool)
                 muta_gt += muta_nt
+                self.has_muta = True
             else:
                 muta_gt += gt[allele]
         return muta_gt
@@ -144,6 +148,7 @@ class SimulationModel(object):
         print('Child read: ', end='')
         print(self.child_read)
         print('Probability of mutation: %s' % self.proba)
+        print('Has mutation: %s' % self.has_muta)
 
     @classmethod
     def write_proba(cls, filename, exp_count):
@@ -158,5 +163,5 @@ class SimulationModel(object):
         fout = open(filename, 'w')
         for x in range(exp_count):
             sim_model = cls()
-            fout.write('%s\n' % sim_model.proba)
+            fout.write('%s\t%s\n' % (sim_model.proba, sim_model.has_muta))
         fout.close()

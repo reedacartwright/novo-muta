@@ -25,7 +25,7 @@ from family import utilities as ut
 handle = open(sys.argv[1])
 
 for line in handle:
-    values = line.strip("\n").split("\t")
+    values = line.strip('\n').split('\t')
     child_read_arr = values[:4]
     mom_read_arr = values[4:8]
     dad_read_arr = values[8:12]
