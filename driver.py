@@ -1,18 +1,20 @@
 #!/usr/bin/env python
 """
-Driver file for TrioModel. This takes in an input text file where each parameter
+Driver file for TrioModel. This accepts an input text file where each parameter
 is deliminated by a tab and each model object is on a new line. Leave an
 optional field empty to use the default value. Parameters include:
 
-#A #C # G #T child reads (each count is deliminated by a tab)
-#A #C # G #T mom reads
-#A #C # G #T dad reads
+#A #C # G #T child read counts (each count is deliminated by a tab)
+#A #C # G #T mother read counts
+#A #C # G #T father read counts
 population mutation rate
 germline mutation rate
 somatic mutation rate
 sequencing error rate
 dirichlet multinomial dispersion (optional)
 dirichlet multinomial bias (optional)
+
+The output is formated with the read counts followed by the probability.
 """
 import sys
 
@@ -33,7 +35,7 @@ for line in handle:
     reads = [child_read, mom_read, dad_read]
     rates_arr = values[12:16]
     rates = [float(rate) for rate in rates_arr]
-    disp = float(values[16]) if values[16] else 1000
+    disp = float(values[16]) if values[16] else 1000  # default dispersion value
     bias = float(values[17]) if values[17] else None
 
     trio_model = TrioModel(
@@ -46,7 +48,7 @@ for line in handle:
         dm_bias=bias
     )
     proba = trio_model.trio()
-    print(reads)
+    print(reads, end='\t')
     print(proba)
 
 handle.close()

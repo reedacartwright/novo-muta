@@ -1,7 +1,7 @@
 """
-Pileup class contains methods to parse and align the sequences in pileup files,
-and creates a TrioModel object from the read counts and writes the probabilities
-to a text file.
+Pileup utilities contain methods to parse and align the sequences in .pileup
+files. It can create a TrioModel object using the parsed sequencing reads, and
+write the probability of mutation to a text file.
 """
 import itertools
 import sys
@@ -9,20 +9,21 @@ import sys
 from family.trio_model import TrioModel
 from family import utilities as ut
 
-THRESHOLD = 0.01
+THRESHOLD = 0.01  # any greater probability than this number is printed
 
 
 def trim_header(lines):
     """
-    Remove initial sequences that are not necessary.
-    Assume there are sequences that are not N.
+    Remove initial sequences that are not necessary, which contain a N
+    reference. Assume that there are additional sequences where the reference is
+    not N.
 
     Args:
-        lines: An iterable of the file that is being read.
+        lines: Iterable of the content in the input file.
 
     Returns:
-        An array containing the contents of handle excluding any initial lines
-        with a reference N.
+        Array containing the content of the input file excluding any initial
+        lines with a reference N.
     """
     count = 0
     for line in lines:
@@ -35,13 +36,13 @@ def trim_header(lines):
 
 def get_reads(line):
     """
-    Parse pileup data into an array of read counts per nucleotide.
+    Parse pileup data into an array of read counts.
 
     Args:
         line: String read from a pileup file representing a single site sequence.
 
     Returns:
-        A 4 element array containing read counts per nucleotide: [A, C, G, T].
+        Array containing read counts [#A, #C, #G, #T].
     """
     values = line.strip("\n").split("\t")
     ref = values[2]
@@ -59,13 +60,13 @@ def get_reads(line):
 
 def write_proba(child, mother, father, filename):
     """
-    Write probabilites of each site on a new line to a text file.
+    Write the probability of each site on a new line to a text file.
 
     Args:
-        child: Contents of the child pileup file.
-        mother: Contents of the mother pileup file.
-        father: Contents of the father pileup file.
-        filename: String name of file to be written.
+        child: Iterable of the content in the child pileup file.
+        mother: Iterable of the content in the mother pileup file.
+        father: Iterable of the content in the father pileup file.
+        filename: String representing the name of the output file.
     """
     child_lines = trim_header(child)
     mother_lines = trim_header(mother)

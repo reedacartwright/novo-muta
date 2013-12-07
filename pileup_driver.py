@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 """
-Driver file for TrioModel. This accepts 3 input pileup files as described here:
+Pileup driver file for TrioModel. This accepts 3 input pileup files in the
+format described here:
+
 http://samtools.sourceforge.net/pileup.shtml
 
 The pileup data is read and parsed into read counts that the TrioModel can
-process. Default values are used for all parameters.
+process. Default parameters values are used.
 
-Assume that all pileup files have the same number of sites.
+Assume that all pileup files have the same number of sites and thus can be
+aligned.
 """
 import sys
 
