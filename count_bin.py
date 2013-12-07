@@ -22,4 +22,4 @@ for line in lines:
 fin.close()
 
 has_muta_percent = count / seq_count * 100
-print('%.2f\%% of sites contain a mutation.' % has_muta_percent)
+print('%.2f%% of %d sites contain a mutation.' % (has_muta_percent, seq_count))
