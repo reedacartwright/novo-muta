@@ -85,6 +85,10 @@ class SimulationModel(object):
         than the germline or somatic mutation rate. Set has_muta to True if a
         mutation occurred, otherwise leave as False.
 
+        For testing purposes, the germline and somatic mutation rates will be
+        set to sequencing error rate (0.005) to increase mutations in the
+        simulation.
+
         Args:
             gt: 2-character string representing genotype to be mutated.
             is_soma: Set by default to True to use somatic mutation rate. Set to
@@ -94,10 +98,7 @@ class SimulationModel(object):
             2-character string representing the mutated genotype or the original
             genotype if no mutation occurred.
         """
-        if is_soma:
-            muta_rate = self.trio_model.soma_muta_rate
-        else:
-            muta_rate = self.trio_model.germ_muta_rate
+        muta_rate = self.trio_model.seq_err_rate  # increase mutations in output
         muta_gt = ''
         muta_nts = {'A': ['C', 'G', 'T'],
                     'C': ['A', 'G', 'T'],
