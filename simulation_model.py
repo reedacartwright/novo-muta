@@ -86,8 +86,7 @@ class SimulationModel(object):
         mutation occurred, otherwise leave as False.
 
         For testing purposes, the germline and somatic mutation rates will be
-        set to sequencing error rate (0.005) to increase mutations in the
-        simulation.
+        set to 0.000001 to increase mutations in the simulation.
 
         Args:
             gt: 2-character string representing genotype to be mutated.
@@ -98,7 +97,7 @@ class SimulationModel(object):
             2-character string representing the mutated genotype or the original
             genotype if no mutation occurred.
         """
-        muta_rate = self.trio_model.seq_err_rate  # increase mutations in output
+        muta_rate = 0.000001  # increase mutations in output
         muta_gt = ''
         muta_nts = {'A': ['C', 'G', 'T'],
                     'C': ['A', 'G', 'T'],
@@ -149,12 +148,13 @@ class SimulationModel(object):
         print('Child read: ', end='')
         print(self.child_read)
         print('Probability of mutation: %s' % self.proba)
-        print('Has mutation: %s' % self.has_muta)
+        print('Has mutation: %i' % self.has_muta)
 
     @classmethod
     def write_proba(cls, filename, exp_count):
         """
-        Generate exp_count samples and output their probabilities to a file,
+        Generate exp_count samples and output their probabilities and whether
+        that site contains a mutation (1 for True, 0 for False) to a file,
         each on a new line.
         
         Args:
@@ -164,5 +164,5 @@ class SimulationModel(object):
         fout = open(filename, 'w')
         for x in range(exp_count):
             sim_model = cls()
-            fout.write('%s\t%s\n' % (sim_model.proba, sim_model.has_muta))
+            fout.write('%s\t%i\n' % (sim_model.proba, sim_model.has_muta))
         fout.close()
