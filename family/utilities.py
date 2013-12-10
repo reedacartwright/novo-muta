@@ -19,7 +19,10 @@ GENOTYPES = ['%s%s' % pair
 ]
 GENOTYPE_COUNT = len(GENOTYPES)  # 16
 GENOTYPE_INDEX = {gt: i for i, gt in enumerate(GENOTYPES)}
-
+GENOTYPE_NUM = [[0, 0], [0, 1], [0, 2], [0, 3],
+                [1, 0], [1, 1], [1, 2], [1, 3],
+                [2, 0], [2, 1], [2, 2], [2, 3],
+                [3, 0], [3, 1], [3, 2], [3, 3]]
 
 def get_alphas(rate):
     """

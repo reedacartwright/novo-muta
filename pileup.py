@@ -72,7 +72,7 @@ def write_proba(child, mother, father, filename):
     mother_lines = trim_header(mother)
     father_lines = trim_header(father)
     fout = open(filename, 'w')
-    for c, m, f in itertools.izip_longest(child_lines, mother_lines, father_lines):
+    for c, m, f in itertools.zip_longest(child_lines, mother_lines, father_lines):
         reads = [get_reads(c), get_reads(m), get_reads(f)]
         trio_model = TrioModel(reads=reads)
         proba = trio_model.trio()
