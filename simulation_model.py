@@ -19,14 +19,22 @@ class SimulationModel(object):
         cov: Integer representing coverage or the number of experiments.
         has_muta: Boolean representing if this site contains a mutation.
     """
-    def __init__(self, soma_muta_rate):
+    def __init__(self, germ_muta_rate, soma_muta_rate):
         """
         Generate a random sample and calculate probability of mutation with
         50x coverage.
 
-        Somatic mutation rate is adjustable.
+        Germline and somatic mutation rates are adjustable via command line.
         """
-        self.trio_model = TrioModel(soma_muta_rate=soma_muta_rate)
+        if germ_muta_rate is not None and soma_muta_rate is not None:
+            self.trio_model = TrioModel(germ_muta_rate=germ_muta_rate,
+                                        soma_muta_rate=soma_muta_rate)
+        elif germ_muta_rate is not None:
+            self.trio_model = TrioModel(germ_muta_rate=germ_muta_rate)
+        elif soma_muta_rate is not None:
+            self.trio_model = TrioModel(soma_muta_rate=soma_muta_rate)
+        else:
+            self.trio_model = TrioModel()
         self.cov = 50
         self.has_muta = False
 
@@ -68,7 +76,7 @@ class SimulationModel(object):
         return np.random.multinomial(self.cov, rand_alpha)
 
     @classmethod
-    def write_proba(cls, filename, exp_count, soma_muta_rate):
+    def write_proba(cls, filename, exp_count, germ_muta_rate, soma_muta_rate):
         """
         Generate exp_count samples and output their probabilities and whether
         that site contains a mutation (1 for True, 0 for False) to a file,
@@ -77,9 +85,11 @@ class SimulationModel(object):
         Args:
             filename: String representing the name of the output file.
             exp_count: Integer representing the number of samples to generate.
+            germ_muta_rate: Float representing germline mutation rate.
             soma_muta_rate: Float representing somatic mutation rate.
         """
-        sim_model = cls(soma_muta_rate=soma_muta_rate)
+        sim_model = cls(germ_muta_rate=germ_muta_rate,
+                        soma_muta_rate=soma_muta_rate)
         parent_gt_idxs = np.random.choice(
             a=256,
             size=exp_count,
