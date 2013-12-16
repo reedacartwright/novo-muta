@@ -38,7 +38,7 @@ class SimulationModel(object):
         self.cov = 50
         self.has_muta = False
 
-    def muta(self, gt_idx, is_soma=True):
+    def muta(self, gt_idx, is_soma=True, parent_gt_idx=None):
         """
         Mutate genotype based on somatic transition matrix. Set has_muta to True
         if a mutation occurred, otherwise leave as False.
@@ -47,6 +47,10 @@ class SimulationModel(object):
             gt_idx: Integer representing index of the genotype to be mutated.
             is_soma: Set by default to True to use somatic mutation rate. Set to
                 False to use germline mutation rate.
+            parent_gt_idx: Integer representing the combined genotypes of both
+                parents {0: 'AAAA', 1: 'AAAC', ..., 255: 'TTTT'}. This is used
+                to access the appropriate child germline matrix. Assume this
+                parameter is passed in when is_soma is True.
 
         Returns:
             Integer representing the index of the mutated genotype or the
@@ -55,7 +59,7 @@ class SimulationModel(object):
         if is_soma:
             prob_mat = self.trio_model.soma_prob_mat[gt_idx]
         else:
-            prob_mat = self.trio_model.child_prob_mat[:,gt_idx]
+            prob_mat = self.trio_model.child_prob_mat[:,parent_gt_idx]
         muta_gt_idx = np.random.choice(a=ut.GENOTYPE_COUNT, p=prob_mat)
         if muta_gt_idx != gt_idx:
             self.has_muta = True
@@ -112,8 +116,9 @@ class SimulationModel(object):
             ]
             child_gt_idx = ut.GENOTYPE_NUM.index(child_gt_by_nt_idx)
             child_germ_gt_idx = sim_model.muta(
-                m*ut.GENOTYPE_COUNT + d,
-                is_soma=False
+                child_gt_idx,
+                is_soma=False,
+                parent_gt_idx=m*ut.GENOTYPE_COUNT + d
             )
             mom_soma_gt_idx = sim_model.muta(m)
             dad_soma_gt_idx = sim_model.muta(d)

@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 """
-Script to parse simulation input file. The first column represents the
-probability of mutation. The second column represents if the site contains a
-mutation either 1 or 0. Each site is placed on a new line.
-
-This script creates bins with probability cateogories in percentage
-[0, 10), [10, 20), [20, 30),...,[90, 100] and calculcates the percentage of
+Script to parse simulation input file, where the first column represents the
+probability of mutation (as a float [0, 1]) and the second column represents if
+the site contains a mutation (1 is True, 0 is False). Each site is placed on a
+new line. This script creates bins with probability cateogories in percentage
+[0, 10), [10, 20), [20, 30),...,[90, 100] and calculates the percentage of
 the sites in each bin that contain a real mutation, meaning the value in
 the has mutation column is 1.
 """
