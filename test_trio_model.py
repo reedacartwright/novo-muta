@@ -21,12 +21,11 @@ class TestTrioModel(unittest.TestCase):
         self.assertAlmostEqual(proba, 1)
 
     def test_germ_muta(self):
-        child_prob_mat = self.trio_model.get_child_prob_mat()
-        proba = np.sum(child_prob_mat)
+        proba = np.sum(self.trio_model.child_prob_mat)
         self.assertAlmostEqual(proba, 256)
 
     def test_soma_muta(self):
-        proba = np.sum(self.trio_model.soma_and_geno_mat)
+        proba = np.sum(self.trio_model.soma_prob_mat)
         self.assertAlmostEqual(proba, 16)
 
     def test_seq_err(self):

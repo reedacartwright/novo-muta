@@ -26,7 +26,10 @@ class TrioModel(object):
             from parent_prob_mat.
         parent_prob_mat: 16 x 16 probability matrix of the parents in log
             space (see pop_sample()).
-        soma_and_geno_mat: 16 x 16 probability transition matrix of mutating
+        child_prob_mat: 16 x 256 probability transition matrix derived from
+            the Kronecker product of a 4 x 16 probability matrix given one
+            parent with itself.
+        soma_prob_mat: 16 x 16 probability transition matrix of mutating
             to another genotype.
     """
     def __init__(self, reads=None,
@@ -48,7 +51,8 @@ class TrioModel(object):
         self.max_elems = []
         self.geno = None
         self.parent_prob_mat = self.pop_sample()
-        self.soma_and_geno_mat = self.soma_and_geno()
+        self.child_prob_mat = self.get_child_prob_mat()
+        self.soma_prob_mat = self.get_soma_prob_mat()
 
     def trio(self):
         """
@@ -90,20 +94,19 @@ class TrioModel(object):
         """     
         # multiply vectors by transition matrix
         seq_prob_mat = self.seq_err_all()  # 3x16
-        child_prob = seq_prob_mat[0].dot(self.soma_and_geno_mat)  # 16
-        mom_prob = seq_prob_mat[1].dot(self.soma_and_geno_mat)  # 16
-        dad_prob = seq_prob_mat[2].dot(self.soma_and_geno_mat)  # 16
+        child_prob = seq_prob_mat[0].dot(self.soma_prob_mat)  # 16
+        mom_prob = seq_prob_mat[1].dot(self.soma_prob_mat)  # 16
+        dad_prob = seq_prob_mat[2].dot(self.soma_prob_mat)  # 16
 
         # calculate denominator
         parent_prob = np.kron(dad_prob, mom_prob)  # 1x256
-        child_prob_mat = self.get_child_prob_mat()  # 16x256
-        child_germ_prob = child_prob.dot(child_prob_mat)  # 1x256
+        child_germ_prob = child_prob.dot(self.child_prob_mat)  # 1x256
         dem_mat = np.multiply(child_germ_prob, parent_prob)
         dem_mat = np.multiply(dem_mat, self.parent_prob_mat)
         dem = np.sum(dem_mat)
 
         # calculate numerator
-        soma_and_geno_diag = ut.get_diag(self.soma_and_geno_mat)  # 16x16
+        soma_and_geno_diag = ut.get_diag(self.soma_prob_mat)  # 16x16
         child_prob_num = seq_prob_mat[0].dot(soma_and_geno_diag)  # 16
         mom_prob_num = seq_prob_mat[1].dot(soma_and_geno_diag)  # 16
         dad_prob_num = seq_prob_mat[2].dot(soma_and_geno_diag)  # 16
@@ -184,7 +187,7 @@ class TrioModel(object):
 
         return term + ind_term_chrom
 
-    def soma_and_geno(self):
+    def get_soma_prob_mat(self):
         """
         Compute event space for somatic nucleotide given a genotype nucleotide
         for a single chromosome. Combine event spaces for two chromosomes

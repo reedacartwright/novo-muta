@@ -38,27 +38,30 @@ class SimulationModel(object):
         self.cov = 50
         self.has_muta = False
 
-    def muta(self, gt_idx):
+    def muta(self, gt_idx, is_soma=True):
         """
         Mutate genotype based on somatic transition matrix. Set has_muta to True
         if a mutation occurred, otherwise leave as False.
 
         Args:
             gt_idx: Integer representing index of the genotype to be mutated.
+            is_soma: Set by default to True to use somatic mutation rate. Set to
+                False to use germline mutation rate.
 
         Returns:
             Integer representing the index of the mutated genotype or the
             original genotype if no mutation occurred.
         """
-        muta_gt_idx = np.random.choice(
-            a=16,
-            p=self.trio_model.soma_and_geno_mat[gt_idx]
-        )
+        if is_soma:
+            prob_mat = self.trio_model.soma_prob_mat[gt_idx]
+        else:
+            prob_mat = self.trio_model.child_prob_mat[:,gt_idx]
+        muta_gt_idx = np.random.choice(a=ut.GENOTYPE_COUNT, p=prob_mat)
         if muta_gt_idx != gt_idx:
             self.has_muta = True
         return muta_gt_idx
 
-    def dirichlet_multinomial_sample(self, soma_idx):
+    def dm_sample(self, soma_idx):
         """
         Use alpha frequencies based on the somatic genotype to select
         nucleotide frequencies and use these frequencies to draw sequencing
@@ -71,9 +74,10 @@ class SimulationModel(object):
         Returns:
             Array containing read counts [#A, #C, #G, #T].
         """
-        alphas = ut.get_alphas(self.trio_model.seq_err_rate)
-        rand_alpha = np.random.dirichlet(alphas[soma_idx])
-        return np.random.multinomial(self.cov, rand_alpha)
+        alpha_mat = (ut.get_alphas(self.trio_model.seq_err_rate) *
+            self.trio_model.dm_disp)
+        alpha = np.random.dirichlet(alpha_mat[soma_idx])
+        return np.random.multinomial(self.cov, alpha)
 
     @classmethod
     def write_proba(cls, filename, exp_count, germ_muta_rate, soma_muta_rate):
@@ -88,28 +92,35 @@ class SimulationModel(object):
             germ_muta_rate: Float representing germline mutation rate.
             soma_muta_rate: Float representing somatic mutation rate.
         """
-        sim_model = cls(germ_muta_rate=germ_muta_rate,
-                        soma_muta_rate=soma_muta_rate)
+        sim_model = cls(
+            germ_muta_rate=germ_muta_rate,
+            soma_muta_rate=soma_muta_rate
+        )
         parent_gt_idxs = np.random.choice(
-            a=256,
+            a=ut.GENOTYPE_COUNT * ut.GENOTYPE_COUNT,
             size=exp_count,
             p=sim_model.trio_model.parent_prob_mat
         )
-        mom_gt_idxs = parent_gt_idxs % 16
-        dad_gt_idxs = parent_gt_idxs // 16
+        mom_gt_idxs = parent_gt_idxs % ut.GENOTYPE_COUNT
+        dad_gt_idxs = parent_gt_idxs // ut.GENOTYPE_COUNT
 
         fout = open(filename, 'w')
         for m, d in itertools.zip_longest(mom_gt_idxs, dad_gt_idxs):
-            child_gt_by_nt_idx = [np.random.choice(ut.GENOTYPE_NUM[m]),
-                                  np.random.choice(ut.GENOTYPE_NUM[d])]
+            child_gt_by_nt_idx = [
+                np.random.choice(ut.GENOTYPE_NUM[m]),
+                np.random.choice(ut.GENOTYPE_NUM[d])
+            ]
             child_gt_idx = ut.GENOTYPE_NUM.index(child_gt_by_nt_idx)
-            child_germ_gt_idx = sim_model.muta(child_gt_idx)
+            child_germ_gt_idx = sim_model.muta(
+                m*ut.GENOTYPE_COUNT + d,
+                is_soma=False
+            )
             mom_soma_gt_idx = sim_model.muta(m)
             dad_soma_gt_idx = sim_model.muta(d)
             child_soma_gt_idx = sim_model.muta(child_germ_gt_idx)
-            mom_read = sim_model.dirichlet_multinomial_sample(mom_soma_gt_idx)
-            dad_read = sim_model.dirichlet_multinomial_sample(dad_soma_gt_idx)
-            child_read = sim_model.dirichlet_multinomial_sample(child_soma_gt_idx)
+            mom_read = sim_model.dm_sample(mom_soma_gt_idx)
+            dad_read = sim_model.dm_sample(dad_soma_gt_idx)
+            child_read = sim_model.dm_sample(child_soma_gt_idx)
             sim_model.trio_model.reads = [child_read, mom_read, dad_read]
             proba = str(sim_model.trio_model.trio())
             fout.write('%s\t%i\n' % (proba, sim_model.has_muta))

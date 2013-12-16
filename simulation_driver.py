@@ -4,7 +4,7 @@ import sys
 from simulation_model import SimulationModel
 
 
-# run python simulation_driver.py <output.txt> <#samples> <soma muta rate>
+# run python simulation_driver.py <output.txt> <#samples> <germ muta rate> <soma muta rate>
 filename = sys.argv[1]
 exp_count = int(sys.argv[2])
 germ_muta_rate = float(sys.argv[3]) if len(sys.argv) > 3 else None

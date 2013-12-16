@@ -17,14 +17,13 @@ BIN_SIZE = 10
 
 fin = open(sys.argv[1])
 lines = fin.readlines()
-total_counts = [0] * BIN_SIZE
 counts = [0] * BIN_SIZE
+total_counts = [0] * BIN_SIZE
 
 for line in lines:
     values = line.strip('\n').split('\t')
     proba = float(values[0])
     has_muta = int(values[1])
-
     bin = int(min(math.floor(proba * 10), 9))
     total_counts[bin] += 1
     if has_muta == 1:
@@ -34,7 +33,7 @@ fin.close()
 for x in range(BIN_SIZE):
     if total_counts[x] > 0:
         has_muta_percent = counts[x] / total_counts[x] * 100
-        print('%.2f%% or %d\\%d sites in bin %d contain a mutation.' %
+        print('%.2f%% or %d/%d sites in bin %d contain a mutation.' %
             (has_muta_percent, counts[x], total_counts[x], x))
     else:
         print('There are no sites in bin %d.' % x)
