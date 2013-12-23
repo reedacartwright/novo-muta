@@ -13,7 +13,6 @@ belongs to, except 100% will go in bin 9.
 import math
 import sys
 
-BASE = 10
 NUM_BINS = 10
 
 
@@ -26,7 +25,7 @@ for line in lines:
     values = line.strip('\n').split('\t')
     proba = float(values[0])
     has_muta = int(values[1])
-    bin = int(min(math.floor(proba * BASE), NUM_BINS - 1))
+    bin = int(min(math.floor(proba * NUM_BINS), NUM_BINS - 1))
     total[bin] += 1
     if has_muta == 1:
         counts[bin] += 1
@@ -34,7 +33,7 @@ fin.close()
 
 for i in range(NUM_BINS):
     if total[i] > 0:
-        has_muta_pc = counts[i] / total[i] * BASE * BASE
+        has_muta_pc = counts[i] / total[i] * 100
         print('%.2f%% or %d/%d sites in bin %d contain a mutation.' %
             (has_muta_pc, counts[i], total[i], i))
     else:
