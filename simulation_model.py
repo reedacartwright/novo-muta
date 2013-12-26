@@ -19,12 +19,13 @@ class SimulationModel(object):
         cov: Integer representing coverage or the number of experiments.
         has_muta: Boolean representing if this site contains a mutation.
     """
-    def __init__(self, germ_muta_rate, soma_muta_rate):
+    def __init__(self, coverage, germ_muta_rate, soma_muta_rate):
         """
-        Generate a random sample and calculate probability of mutation with
-        50x coverage.
+        Generate a random sample and calculate probability of mutation with the
+        given coverage.
 
-        Germline and somatic mutation rates are adjustable via command line.
+        Coverage, and germline and somatic mutation rates are adjustable via
+        command line.
         """
         if germ_muta_rate is not None and soma_muta_rate is not None:
             self.trio_model = TrioModel(germ_muta_rate=germ_muta_rate,
@@ -35,7 +36,7 @@ class SimulationModel(object):
             self.trio_model = TrioModel(soma_muta_rate=soma_muta_rate)
         else:
             self.trio_model = TrioModel()
-        self.cov = 50
+        self.cov = coverage
         self.has_muta = False
 
     def muta(self, gt_idx, is_soma=True, parent_gt_idx=None):
@@ -84,7 +85,8 @@ class SimulationModel(object):
         return np.random.multinomial(self.cov, alpha)
 
     @classmethod
-    def write_proba(cls, filename, exp_count, germ_muta_rate, soma_muta_rate):
+    def write_proba(cls, filename, exp_count, cov,
+                    germ_muta_rate, soma_muta_rate):
         """
         Generate exp_count samples and output their probabilities and whether
         that site contains a mutation (1 for True, 0 for False) to a file,
@@ -93,10 +95,12 @@ class SimulationModel(object):
         Args:
             filename: String representing the name of the output file.
             exp_count: Integer representing the number of samples to generate.
+            cov: Integer representing coverage or the number of experiments.
             germ_muta_rate: Float representing germline mutation rate.
             soma_muta_rate: Float representing somatic mutation rate.
         """
         sim_model = cls(
+            cov,
             germ_muta_rate=germ_muta_rate,
             soma_muta_rate=soma_muta_rate
         )
