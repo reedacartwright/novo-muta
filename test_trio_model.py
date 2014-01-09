@@ -1,13 +1,4 @@
 #!/usr/bin/env python
-"""
-P(T) probability of true mother genotype
-P(S) probability of somatic mother genotype
-P(R) probability of sequencing reads
-
-P(T) requires no conditioning
-P(S) = \sum_T P(T) * P(S|T)
-P(R) = \sum_S P(S) * P(R|S)
-"""
 import unittest
 
 import numpy as np
@@ -18,18 +9,10 @@ from family import utilities as ut
 
 class TestTrioModel(unittest.TestCase):
     def setUp(self):
-        # reads must be 3x4
         self.trio_model = TrioModel(
             reads=[[30, 0, 0, 0],
                    [30, 0, 0, 0],
-                   [30, 0, 0, 0]],
-            #reads=ut.enum_nt_counts(2),  # 2-allele genotypes
-            pop_muta_rate=0.001,
-            germ_muta_rate=0.00000002,
-            soma_muta_rate=0.00000002,
-            seq_err_rate=0.005,
-            dm_disp=None,
-            dm_bias=None
+                   [30, 0, 0, 0]]
         )
 
     def test_pop_sample(self):
@@ -38,27 +21,21 @@ class TestTrioModel(unittest.TestCase):
         self.assertAlmostEqual(proba, 1)
 
     def test_germ_muta(self):
-        child_prob_mat = self.trio_model.get_child_prob_mat()
-        proba = np.sum(child_prob_mat)
+        proba = np.sum(self.trio_model.child_prob_mat)
         self.assertAlmostEqual(proba, 256)
 
     def test_soma_muta(self):
-        soma_and_geno = self.trio_model.soma_and_geno()
-        soma_proba = np.sum(soma_and_geno)
-        self.assertAlmostEqual(soma_proba, 1)
+        proba = np.sum(self.trio_model.soma_prob_mat)
+        self.assertAlmostEqual(proba, 16)
 
     def test_seq_err(self):
         seq_prob_mat = self.trio_model.seq_err_all()
-        seq_prob_mat_scaled = ut.scale_to_log_all(
-            seq_prob_mat,
-            self.trio_model.max_elems
-        )
-        proba = np.sum(seq_prob_mat_scaled)
-        self.assertAlmostEqual(proba, 16)  # 16 alpha freq
+        proba = np.sum(seq_prob_mat)
+        self.assertAlmostEqual(proba, 3)
 
     def test_trio(self):
         proba = self.trio_model.trio()
-        self.assertAlmostEqual(proba, 1)
+        self.assertAlmostEqual(proba, 0)
 
 if __name__ == '__main__':
     unittest.main()

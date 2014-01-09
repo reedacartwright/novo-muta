@@ -1,47 +1,42 @@
+"""
+Utilities file containing useful contants and functions to support the TrioModel
+including the Dirichlet multinomial.
+"""
 import itertools
 import math
 
 import numpy as np
 from scipy import special as sp
 
-# global constants for specifiying array size
+# global constants for specifying array size
 NUCLEOTIDES = ['A', 'C', 'G', 'T']
 NUCLEOTIDE_COUNT = len(NUCLEOTIDES)  # 4
 NUCLEOTIDE_INDEX = {nt: i for i, nt in enumerate(NUCLEOTIDES)}
 
-# lexicographical ordered set of 2 nucleotide strings
+# array of lexicographical ordered strings
 GENOTYPES = ['%s%s' % pair
     for pair in itertools.product(NUCLEOTIDES, repeat=2)
 ]
 GENOTYPE_COUNT = len(GENOTYPES)  # 16
 GENOTYPE_INDEX = {gt: i for i, gt in enumerate(GENOTYPES)}
-
-# TODO: reduce genotypes from 16 to 10 by removing equivilants if efficiency
-#    becomes an issue
-# GENOTYPES = ['AA', 'AC', 'AG', 'AT', 'CC',
-#              'CG', 'CT', 'GG', 'GT', 'TT']
-GENOTYPE_LEFT_EQUIV = {
-    'AC':'CA', 'AG':'GA', 'AT':'TA',
-    'CG':'GC', 'CT':'TC', 'GT':'TG'
-}
-GENOTYPE_RIGHT_EQUIV = {v: k for k, v in GENOTYPE_LEFT_EQUIV.items()}
-
+GENOTYPE_NUM = [[0, 0], [0, 1], [0, 2], [0, 3],
+                [1, 0], [1, 1], [1, 2], [1, 3],
+                [2, 0], [2, 1], [2, 2], [2, 3],
+                [3, 0], [3, 1], [3, 2], [3, 3]]
 
 def get_alphas(rate):
     """
-    Generate a 16 x 4 alpha matrix given the sequencing error rate. The order of
-    the alpha frequencies is given in the same order of genotypes.
+    Generate a 16 x 4 alpha frequencies matrix given the sequencing error rate.
+    The order of the alpha frequencies is the same of that of GENOTYPES.
 
-    Current values are placeholders for testing purposes.
-
-    TODO: Replace with actual alpha frequencies when Rachel completes research
-        or when parameters have been estimated.
+    Current values are placeholders until they have been estimated some time in
+    Spring 2014.
 
     Args:
-        rate: The sequencing error rate.
+        rate: Float representing sequencing error rate.
 
     Returns:
-        A 16 x 4 numpy array of Dirichlet multinomial alpha parameters
+        16 x 4 numpy array of Dirichlet multinomial alpha parameters
         alpha = (alpha_1, ..., alpha_K) for a K-category Dirichlet distribution
         (where K = 4 = NUCLEOTIDE_COUNT) that vary with each combination of
         parental genotype and reference nt.
@@ -77,17 +72,14 @@ def dirichlet_multinomial(alpha, n):
         \Pi_{i = A, C, G, T} \frac{\gamma(\alpha_i * \theta + n_i)}
                                   {\gamma(\alpha_i * \theta}
 
-    We refer to the first term in the product as the constant_term,
-    because its value doesn't vary with the number of nucleotide counts,
-    and the second term in the product as the product_term.
-
     Args:
-        alpha: A list of frequencies (doubles) for each category in the
-            multinomial that sum to one.
-        n: A list of samples (integers) for each category in the multinomial.
+        alpha: Array of floats representing frequencies for each category in the
+            multinomial, and sum to one.
+        n: Array of integers representing samples for each category in the
+            multinomial.
 
     Returns:
-        A double equal to log_e(P) where P is the value calculated from the pdf.
+        Double representing log_e(P) where P is the value calculated from the pdf.
     """
     N = sum(n)
     A = sum(alpha)
@@ -100,9 +92,9 @@ def dirichlet_multinomial(alpha, n):
 def two_parent_counts():
     """
     Returns:
-        A 16 x 16 x 4 numpy array of genotype counts where the (i, j) element
-        of the array is the count of nucleotide k in the i'th mother genotype
-        and the j'th father genotype with mother and father genotypes.
+        16 x 16 x 4 numpy array of genotype counts where the (i, j) element of
+        the array is the count of nucleotide k in the i'th mother genotype and
+        the j'th father genotype with mother and father genotypes.
     """
     gt_count = np.zeros((
         GENOTYPE_COUNT,
@@ -121,10 +113,10 @@ def two_parent_counts():
 
 def one_parent_counts():
     """
-    Count the nucleotide frequencies for the 16 different 2-allele genotypes.
+    Count the nucleotide frequencies for the 16 genotypes.
 
     Returns:
-        A 16 x 4 numpy array where row/first dimension corresponds to the
+        16 x 4 numpy array where row/first dimension corresponds to the
         genotypes and column/second dimension is the frequency of each
         nucleotide.
     """
@@ -144,11 +136,10 @@ def enum_nt_counts(size):
     Enumerate all nucleotide strings of a given size in lexicographic order.
 
     Args:
-        size: The length of the nucleotide string.
+        size: Integer representing length of the nucleotide string.
 
     Returns:
-        A 4^size x 4 numpy array of nucleotide counts associated with the
-        strings.
+        4^size x 4 numpy array of nucleotide counts associated with the strings.
     """
     nt_counts = np.zeros((
         math.pow(NUCLEOTIDE_COUNT, size),
@@ -166,61 +157,46 @@ def enum_nt_counts(size):
                 nt_counts[i+j*NUCLEOTIDE_COUNT, :] = first[i, :] + second[j, :]
         return nt_counts
 
-def sum_exp(arr, axis=None):
-    """
-    Sum the exponentials of all specified elements in an array.
-
-    Args:
-        arr: A numpy array.
-        axis (optional): The axis to calculate the sum.
-
-    Returns:
-        The sum of the exponentials of all elements in the array (calculated
-        probability given a probability matrix), or an array of the sum
-        calculated over an axis.
-    """
-    return np.sum( np.exp(arr), axis=axis )
-
-def rescale_to_normal(arr):
+def normalspace(arr):
     """
     Rescale a numpy array in log space to normal space.
 
     Args:
-        arr: A numpy array.
+        arr: numpy array.
 
     Returns:
-        A numpy array rescaled to normal space (the highest element is 1).
+        numpy array rescaled to normal space (the highest element is 1).
     """
     max_elem = np.amax(arr)
     return np.exp(arr-max_elem), max_elem
 
-def scale_to_log(arr, max_elem):
+def logspace(arr, max_elem):
     """
-    Scale a specific numpy array in normal space to log space knowing its max
+    Scale a numpy array in normal space to log space knowing its max
     element.
 
     Currently used for testing purposes only.
 
     Args:
-        arr: A numpy array.
-        max_elem: The greatest element in the array (stored when
-            rescale_to_normal is called).
+        arr: numpy array.
+        max_elem: Greatest element in the array (stored when rescale_to_normal()
+            is called).
 
     Returns:
-        A numpy array scaled to log space.
+        numpy array scaled to log space.
     """
-    return arr * np.exp(max_elem)
+    return np.log(arr) + max_elem
 
-def scale_to_log_all(arr, max_elems):
+def logspace_all(arr, max_elems):
     """
     Scale a numpy array in normal space to log space.
 
     Currently used for testing purposes only.
 
     Args:
-        arr: A multidimensional numpy array.
-        max_elems: A list of the greatest element in each of the subarrays
-            (stored when rescale_to_normal is called).
+        arr: numpy multidimensional array.
+        max_elems: Array containing the greatest element in each of the
+            subarrays (stored when rescale_to_normal() is called).
 
     Returns:
         A numpy array scaled to log space.
@@ -232,10 +208,10 @@ def scale_to_log_all(arr, max_elems):
 def get_diag(arr):
     """
     Args:
-        arr: A numpy multidimensional array.
+        arr: numpy multidimensional array.
 
     Returns:
-        The array with the major diagonal constant and the rest are replaced
+        Array with the major diagonal unchanged and all other elements replaced
         with 0.
     """
     return np.diag(np.diag(arr))

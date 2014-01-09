@@ -1,31 +1,31 @@
 #!/usr/bin/env python
 """
-Driver file for TrioModel. This takes in an input text file where each parameter
+Driver file for TrioModel. This accepts an input text file where each parameter
 is deliminated by a tab and each model object is on a new line. Leave an
-optional field empty to use the default value:
+optional field empty to use the default value. Parameters include:
 
-#A #C # G #T child reads
-#A #C # G #T mom reads
-#A #C # G #T dad reads
+#A #C # G #T child read counts (each count is deliminated by a tab)
+#A #C # G #T mother read counts
+#A #C # G #T father read counts
 population mutation rate
 germline mutation rate
 somatic mutation rate
 sequencing error rate
 dirichlet multinomial dispersion (optional)
 dirichlet multinomial bias (optional)
+
+The output is formated with the read counts followed by the probability.
 """
 import sys
 
-# TODO: when family package is finished use import family
 from family.trio_model import TrioModel
 from family import utilities as ut
 
-
-# run python driver.py parameters.txt
+# run python driver.py <parameters.txt>
 handle = open(sys.argv[1])
 
 for line in handle:
-    values = line.strip("\n").split("\t")
+    values = line.strip('\n').split('\t')
     child_read_arr = values[:4]
     mom_read_arr = values[4:8]
     dad_read_arr = values[8:12]
@@ -35,9 +35,10 @@ for line in handle:
     reads = [child_read, mom_read, dad_read]
     rates_arr = values[12:16]
     rates = [float(rate) for rate in rates_arr]
-    disp = float(values[16])
-    bias = float(values[17])
-    
+
+    disp = float(values[16]) if values[16] else 1000  # default dispersion value
+    bias = float(values[17]) if values[17] else None
+
     trio_model = TrioModel(
         reads=reads,
         pop_muta_rate=rates[0],
@@ -48,6 +49,7 @@ for line in handle:
         dm_bias=bias
     )
     proba = trio_model.trio()
+    print(reads, end='\t')
     print(proba)
 
 handle.close()
